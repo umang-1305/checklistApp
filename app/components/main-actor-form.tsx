@@ -1,12 +1,11 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Button } from "@/app/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
-import { Checkbox } from "@/app/components/ui/checkbox"
-import { Label } from "@/app/components/ui/label"
-import { Trash2 } from 'lucide-react'
+import { useState } from 'react';
+import { Button } from "@/app/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { Label } from "@/app/components/ui/label";
+import { Trash2 } from 'lucide-react';
 
 interface MainActorRow {
   mainActor: string;
@@ -36,21 +35,24 @@ export function MainActorForm() {
   };
 
   return (
-    <div className="mt-8 space-y-4 bg-white p-4 rounded-md">
-      <h2 className="text-xl font-bold text-[#4682B4]">Main Actor Configuration</h2>
-      <div className="grid grid-cols-4 gap-4 mb-2 text-[#4682B4]">
-        <div className="font-medium">Main Actor</div>
-        <div className="font-medium">Team</div>
-        <div className="font-medium">Designation</div>
-        <div className="font-medium">Actions</div>
+    <div className="mt-8 p-6 bg-white rounded-md shadow-md">
+      <h2 className="text-2xl font-bold text-blue-700 mb-6">Main Actor Configuration</h2>
+      <div className="grid grid-cols-4 gap-4 mb-4 text-blue-700 font-semibold">
+        <div>Main Actor</div>
+        <div>Team</div>
+        <div>Designation</div>
+        <div>Actions</div>
       </div>
       {rows.map((row, index) => (
-        <div key={index} className="grid grid-cols-4 gap-4 items-center">
+        <div
+          key={index}
+          className="grid grid-cols-4 gap-4 items-center py-3 px-4 bg-gray-50 rounded-md mb-2 hover:shadow-sm"
+        >
           <Select
             value={row.mainActor}
             onValueChange={(value) => handleInputChange(index, 'mainActor', value)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="bg-white text-gray-700">
               <SelectValue placeholder="Select actor..." />
             </SelectTrigger>
             <SelectContent>
@@ -63,8 +65,8 @@ export function MainActorForm() {
             value={row.team}
             onValueChange={(value) => handleInputChange(index, 'team', value)}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Enter Name" />
+            <SelectTrigger className="bg-white text-gray-700">
+              <SelectValue placeholder="Select team..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="team1">Team 1</SelectItem>
@@ -76,8 +78,8 @@ export function MainActorForm() {
             value={row.designation}
             onValueChange={(value) => handleInputChange(index, 'designation', value)}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Type Object" />
+            <SelectTrigger className="bg-white text-gray-700">
+              <SelectValue placeholder="Select designation..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="designation1">Designation 1</SelectItem>
@@ -90,30 +92,30 @@ export function MainActorForm() {
             size="icon"
             onClick={() => handleDeleteRow(index)}
             disabled={rows.length === 1}
+            className="hover:bg-red-100"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-5 w-5 text-red-500" />
           </Button>
         </div>
       ))}
       <Button
         variant="outline"
-        className="flex items-center text-[#4682B4] hover:text-[#4682B4] hover:bg-[#E6F3FF]"
+        className="mt-4 flex items-center justify-center w-full text-blue-700 hover:bg-blue-100 border border-blue-300"
         onClick={handleAddRow}
       >
         <span className="mr-2">+</span>
         Add Row
       </Button>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 mt-6">
         <Checkbox
           id="real-time"
           checked={realTime}
           onCheckedChange={(checked) => setRealTime(checked as boolean)}
         />
-        <Label htmlFor="real-time" className="text-sm text-[#4682B4] cursor-pointer">
+        <Label htmlFor="real-time" className="text-sm text-gray-700 cursor-pointer">
           Keep all as real time
         </Label>
       </div>
     </div>
   );
 }
-

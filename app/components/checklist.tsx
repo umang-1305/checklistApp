@@ -12,12 +12,20 @@ import { toast } from "@/app/components/ui/use-toast"
 import { fetchActors, postWorkflow } from '../utils/api'
 import { exportToCSV } from '../lib/csvExport'
 import { MainActorForm } from './main-actor-form'
+import { CustomInput } from './custom-inputs/CustomInput'
+import { MultiSelect } from './custom-inputs/MultiSelect'
+import { SingleSelect } from './custom-inputs/SingleSelect'
+import { CustomCheckbox } from './custom-inputs/CustomCheckbox'
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover"
 
 export type ColumnType = 'Task Number' | 'Task Name' | 'Step Name' | 'Designated Actor' | 'Remark' | string;
 
 export interface Column {
   name: ColumnType;
   visible: boolean;
+  inputType: 'text' | 'number' | 'multiSelect' | 'singleSelect' | 'checkbox' | 'custom';
+  options?: string[];
+  allowedInputs?: string[];
 }
 
 export interface Row {
@@ -27,17 +35,20 @@ export interface Row {
 
 export default function Checklist() {
   const [columns, setColumns] = useState<Column[]>([
-    { name: 'Task Number', visible: true },
-    { name: 'Task Name', visible: true },
-    { name: 'Step Name', visible: true },
-    { name: 'Designated Actor', visible: true },
-    { name: 'Remark', visible: true },
+    { name: 'Task Number', visible: true, inputType: 'number' },
+    { name: 'Task Name', visible: true, inputType: 'text' },
+    { name: 'Step Name', visible: true, inputType: 'text' },
+    { name: 'Designated Actor', visible: true, inputType: 'singleSelect', options: [] },
+    { name: 'Remark', visible: true, inputType: 'checkbox' },
   ]);
   const [rows, setRows] = useState<Row[]>([]);
   const [actors, setActors] = useState<string[]>([]);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
   const [newCustomColumn, setNewCustomColumn] = useState('');
+  const [newColumnType, setNewColumnType] = useState<Column['inputType']>('text');
+  const [newColumnOptions, setNewColumnOptions] = useState<string[]>([]);
+  const [newColumnAllowedInputs, setNewColumnAllowedInputs] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
@@ -45,7 +56,13 @@ export default function Checklist() {
       try {
         const response = await fetchActors();
         if (response.status === 'success') {
-          setActors(response.data.map((actor: any) => actor.person));
+          const actorNames = response.data.map((actor: any) => actor.person);
+          setActors(actorNames);
+          setColumns(prevColumns => 
+            prevColumns.map(col => 
+              col.name === 'Designated Actor' ? { ...col, options: actorNames } : col
+            )
+          );
         }
       } catch (error) {
         console.error('Error loading actors:', error);
@@ -154,8 +171,65 @@ export default function Checklist() {
 
   const handleAddCustomColumn = () => {
     if (newCustomColumn) {
-      setColumns([...columns, { name: newCustomColumn, visible: true }]);
+      setColumns([...columns, { 
+        name: newCustomColumn, 
+        visible: true, 
+        inputType: newColumnType,
+        ...(newColumnType === 'multiSelect' || newColumnType === 'singleSelect' ? { options: newColumnOptions } : {}),
+        ...(newColumnType === 'custom' ? { allowedInputs: newColumnAllowedInputs } : {})
+      }]);
       setNewCustomColumn('');
+      setNewColumnType('text');
+      setNewColumnOptions([]);
+      setNewColumnAllowedInputs([]);
+    }
+  };
+
+  const renderCell = (row: Row, column: Column, rowIndex: number) => {
+    switch (column.inputType) {
+      case 'text':
+      case 'number':
+        return (
+          <Input
+            type={column.inputType}
+            value={row[column.name] as string}
+            onChange={(e) => handleCellChange(rowIndex, column.name, e.target.value)}
+          />
+        );
+      case 'multiSelect':
+        return (
+          <MultiSelect
+            options={column.options || []}
+            value={row[column.name] as string[]}
+            onChange={(value) => handleCellChange(rowIndex, column.name, value)}
+          />
+        );
+      case 'singleSelect':
+        return (
+          <SingleSelect
+            options={column.options || []}
+            value={row[column.name] as string}
+            onChange={(value) => handleCellChange(rowIndex, column.name, value)}
+          />
+        );
+      case 'checkbox':
+        return (
+          <CustomCheckbox
+            checked={row[column.name] as boolean}
+            onCheckedChange={(checked) => handleCellChange(rowIndex, column.name, checked)}
+            label={(checked) => checked ? "Yes" : "No"}
+          />
+        );
+      case 'custom':
+        return (
+          <CustomInput
+            value={row[column.name] as string}
+            onChange={(value) => handleCellChange(rowIndex, column.name, value)}
+            allowedInputs={column.allowedInputs || []}
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -212,33 +286,7 @@ export default function Checklist() {
                       >
                         {columns.filter(col => col.visible).map((column) => (
                           <td key={column.name} className="border p-2">
-                            {column.name === 'Task Number' ? (
-                              row[column.name]
-                            ) : column.name === 'Designated Actor' ? (
-                              <Select
-                                value={row[column.name] as string}
-                                onValueChange={(value) => handleCellChange(rowIndex, column.name, value)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select actor..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {actors.map((actor, index) => (
-                                    <SelectItem key={`${actor}-${index}`} value={actor}>{actor}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            ) : column.name === 'Remark' ? (
-                              <Checkbox
-                                checked={row[column.name] as boolean}
-                                onCheckedChange={(checked) => handleCellChange(rowIndex, column.name, checked)}
-                              />
-                            ) : (
-                              <Input
-                                value={row[column.name] as string}
-                                onChange={(e) => handleCellChange(rowIndex, column.name, e.target.value)}
-                              />
-                            )}
+                            {renderCell(row, column, rowIndex)}
                           </td>
                         ))}
                       </tr>
@@ -271,13 +319,38 @@ export default function Checklist() {
                 />
               </div>
             ))}
-            <div className="flex items-center space-x-2">
+            <div className="space-y-2">
               <Input
                 placeholder="New custom column"
                 value={newCustomColumn}
                 onChange={(e) => setNewCustomColumn(e.target.value)}
               />
-              <Button onClick={handleAddCustomColumn}>Add</Button>
+              <Select value={newColumnType} onValueChange={setNewColumnType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select input type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="number">Number</SelectItem>
+                  <SelectItem value="multiSelect">Multi Select</SelectItem>
+                  <SelectItem value="singleSelect">Single Select</SelectItem>
+                  <SelectItem value="checkbox">Checkbox</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {(newColumnType === 'multiSelect' || newColumnType === 'singleSelect') && (
+                <Input
+                  placeholder="Options (comma-separated)"
+                  onChange={(e) => setNewColumnOptions(e.target.value.split(',').map(o => o.trim()))}
+                />
+              )}
+              {newColumnType === 'custom' && (
+                <Input
+                  placeholder="Allowed inputs (comma-separated)"
+                  onChange={(e) => setNewColumnAllowedInputs(e.target.value.split(',').map(o => o.trim()))}
+                />
+              )}
+              <Button onClick={handleAddCustomColumn}>Add Column</Button>
             </div>
           </div>
         </DialogContent>
