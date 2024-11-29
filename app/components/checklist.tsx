@@ -58,6 +58,8 @@ export default function Checklist() {
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnType, setNewColumnType] = useState<Column['inputType']>('text');
+  const [customOptions, setCustomOptions] = useState<string[]>([]);
+  const [newOption, setNewOption] = useState('');
 
   const handleAddRow = () => {
     const newRow: Row = {
@@ -100,10 +102,18 @@ export default function Checklist() {
         visible: true,
         placeholder: `Enter ${newColumnName}`,
         inputType: newColumnType,
-        ...(newColumnType === 'select' ? { options: ['Option 1', 'Option 2', 'Option 3'] } : {})
+        options: newColumnType === 'select' ? customOptions : undefined
       }]);
       setNewColumnName('');
       setNewColumnType('text');
+      setCustomOptions([]);
+    }
+  };
+
+  const handleAddCustomOption = () => {
+    if (newOption && !customOptions.includes(newOption)) {
+      setCustomOptions([...customOptions, newOption]);
+      setNewOption('');
     }
   };
 
@@ -342,6 +352,33 @@ export default function Checklist() {
                   <SelectItem value="checkbox">Checkbox</SelectItem>
                 </SelectContent>
               </Select>
+              {newColumnType === 'select' && (
+                <div className="space-y-2">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Add option"
+                      value={newOption}
+                      onChange={(e) => setNewOption(e.target.value)}
+                      className="bg-gray-50"
+                    />
+                    <Button onClick={handleAddCustomOption} variant="outline">Add Option</Button>
+                  </div>
+                  <div className="space-y-1">
+                    {customOptions.map((option, index) => (
+                      <div key={index} className="flex justify-between items-center">
+                        <span>{option}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCustomOptions(customOptions.filter((_, i) => i !== index))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Button onClick={handleAddCustomColumn} className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6]">
                 Add Custom Column
               </Button>
