@@ -1,6 +1,6 @@
 import React from 'react'
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/app/components/ui/checkbox"
+import { Label } from "@/app/components/ui/label"
 
 interface CustomCheckboxProps {
   checked: boolean
