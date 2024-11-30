@@ -1,16 +1,18 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
+import { Separator } from '@/components/ui/separator'
 import { Button } from "@/app/components/ui/button"
 import { Checkbox } from "@/app/components/ui/checkbox"
 import { Input } from "@/app/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog"
-import { Info, ChevronDown, ChevronRight } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog"
+import { Info, Trash2 , Settings, Plus} from 'lucide-react'
 import { FieldTypeDialog } from '../../components/field-type-dialog'
-import { toast } from "@/app/components/ui/use-toast"
-import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Switch } from '@/components/ui/switch'
 
 interface MainActorRow {
   actions: string;
@@ -61,7 +63,13 @@ interface ChecklistProps {
 }
 
 export default function Checklist({ params }: ChecklistProps) {
-  const { type } = params;
+   const [type, setType] = useState<string>('');
+
+   useEffect(() => {
+     if (params.type) {
+       setType(params.type);
+     }
+   }, [params]);
 
   const [mainActorRows, setMainActorRows] = useState<MainActorRow[]>([{
     actions: '',
@@ -214,369 +222,337 @@ export default function Checklist({ params }: ChecklistProps) {
     setEditingCell(null);
   };
 
-  const publishChanges = useCallback(async () => {
-    const stepMapping = {
-      'MEQ': 'step1',
-      'DRM': 'step2',
-      'RMQ': 'step3'
-    };
+  const handleDelete = () => {
+    setMainActorRows(mainActorRows.slice(0, -1));
+  }
 
-    const step = stepMapping[type as keyof typeof stepMapping] || 'step3';
-
-    const tasks = taskRows.reduce((acc, task, index) => {
-      const taskKey = `task${index + 1}`;
-      const actions = mainActorRows.reduce((actionsAcc, actor, actorIndex) => {
-        if (task.actions === actor.actions) {
-          const actionKey = `action${actorIndex + 1}`;
-          actionsAcc[actionKey] = {
-            actionType: actor.actions,
-            actor: actor.mainActor,
-            isSigned: false
-          };
-        }
-        return actionsAcc;
-      }, {} as Record<string, any>);
-
-      // Only add the task if it has a name and at least one action
-      if (task.taskName && Object.keys(actions).length > 0) {
-        acc[taskKey] = {
-          actions,
-          customInput: {
-            input: false,
-            inputText: "",
-            name: task.taskName
-          },
-          entityObject: task.entityType.map(entity => ({
-            id: entity,
-            name: entity
-          })),
-          entityType: [task.entityType[0] || ""],
-          remark: {
-            input: task.remark,
-            remarkText: "",
-            showRemark: task.remark
-          },
-          route: task.route,
-          taskLabel: task.taskName
-        };
-
-        // Add custom columns
-        columns.forEach(column => {
-          if (column.type && column.type !== 'checkbox' && task[column.name]) {
-            acc[taskKey].customInput[column.name] = task[column.name];
-          }
-        });
-      }
-
-      return acc;
-    }, {} as Record<string, any>);
-
-    // Check if tasks object is empty
-    if (Object.keys(tasks).length === 0) {
-      toast({
-        title: "Error publishing changes",
-        description: "Please add at least one task with a name and an action before publishing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const payload = {
-      [step]: {
-        tasks
-      }
-    };
-
-    try {
-      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow9', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Network response was not ok');
-      }
-
-      const data = await response.json();
-      toast({
-        title: "Changes published successfully",
-        description: "Your changes have been saved and published.",
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: "Error publishing changes",
-        description: error instanceof Error ? error.message : "There was a problem publishing your changes. Please try again.",
-        variant: "destructive",
-      });
-    }
-  }, [type, taskRows, mainActorRows, columns]);
+   const title = type ? `${type.charAt(0).toUpperCase() + type.slice(1)} Checklist` : 'Checklist & Sign'
 
   return (
     <div className="p-6 space-y-8">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">
-          {type ? `${type.charAt(0).toUpperCase() + type.slice(1)} Checklist` : 'Checklist & Sign'}
-        </h1>
-        <Button 
-          className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-full"
-          onClick={publishChanges}
-        >
-          Publish changes
-        </Button>
+        <Card className="w-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-2xl font-semibold">{title}</CardTitle>
+            <div className="flex items-center space-x-4">
+              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-lg ">
+                Publish changes
+              </Button>
+              <Avatar>
+                <AvatarFallback className="bg-[#FFA4E8]">L</AvatarFallback>
+              </Avatar>
+            </div>
+          </CardHeader>
+          <CardContent></CardContent>
+        </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Main Actors</h2>
-          <div className="space-y-6">
-            <div className="grid grid-cols-4 gap-4">
-              <div className="font-medium">Actions</div>
-              <div className="font-medium">Main Actor</div>
-              <div className="font-medium">Team</div>
-              <div className="font-medium">Designation</div>
-            </div>
-
-            {mainActorRows.map((row, index) => (
-              <div key={index} className="grid grid-cols-4 gap-4 items-center">
-                <Input
-                  placeholder="Aa"
-                  value={row.actions}
-                  onChange={(e) => handleMainActorChange(index, 'actions', e.target.value)}
-                  className="bg-gray-50"
-                />
-                <Select
-                  value={row.mainActor}
-                  onValueChange={(value) => handleMainActorChange(index, 'mainActor', value)}
+     <Card className="w-full">
+      <CardContent className="p-6 space-y-6">
+        <div className="border border-input rounded-md p-4 space-y-4">
+        <div className="grid grid-cols-4 gap-4 pb-2">
+          <div className="font-medium">Actions</div>
+          <div className="font-medium">Main Actor</div>
+          <div className="font-medium">Team</div>
+          <div className="font-medium">Designation</div>
+        </div>
+        <Separator className="my-4" />
+          {mainActorRows.map((row, index) => (
+            <div key={index} className="grid grid-cols-4 gap-4 items-center">
+              <Input
+                placeholder="Enter your Action"
+                value={row.actions}
+                onChange={(e) =>
+                  handleMainActorChange(index, "actions", e.target.value)
+                }
+                className="bg-muted"
+              />
+              <Select
+                value={row.mainActor}
+                onValueChange={(value) =>
+                  handleMainActorChange(index, "mainActor", value)
+                }
+              >
+                <SelectTrigger className="bg-background border border-input">
+                  <SelectValue placeholder="Select Actor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="realtime">Check on Realtime</SelectItem>
+                  <SelectItem value="john">John</SelectItem>
+                  <SelectItem value="david">David</SelectItem>
+                  <SelectItem value="joe">Joe</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={row.mainActor === "realtime" ? "" : row.team}
+                onValueChange={(value) =>
+                  handleMainActorChange(index, "team", value)
+                }
+                disabled={row.mainActor === "realtime"}
+              >
+                <SelectTrigger
+                  className={`bg-background border border-input ${
+                    row.mainActor === "realtime"
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
                 >
-                  <SelectTrigger className="bg-white border border-gray-300">
-                    <SelectValue placeholder="Select actor" />
-                  </SelectTrigger>
-                  <SelectContent  className='bg-white'>
-                    <SelectItem value="john">John</SelectItem>
-                    <SelectItem value="david">David</SelectItem>
-                    <SelectItem value="joe">Joe</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <SelectValue placeholder="Select the team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="qa">QA</SelectItem>
+                  <SelectItem value="qc">QC</SelectItem>
+                  <SelectItem value="it">IT</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex items-center gap-2">
                 <Select
-                  value={row.team}
-                  onValueChange={(value) => handleMainActorChange(index, 'team', value)}
+                  value={row.mainActor === "realtime" ? "" : row.designation}
+                  onValueChange={(value) =>
+                    handleMainActorChange(index, "designation", value)
+                  }
+                  disabled={row.mainActor === "realtime"}
                 >
-                  <SelectTrigger className="bg-white border border-gray-300">
-                    <SelectValue placeholder="Select team" />
+                  <SelectTrigger
+                    className={`bg-background border border-input ${
+                      row.mainActor === "realtime"
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                  >
+                    <SelectValue placeholder="Select the Designation" />
                   </SelectTrigger>
-                  <SelectContent className='bg-white'>
-                    <SelectItem value="qa">QA</SelectItem>
-                    <SelectItem value="qc">QC</SelectItem>
-                    <SelectItem value="it">IT</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={row.designation}
-                  onValueChange={(value) => handleMainActorChange(index, 'designation', value)}
-                >
-                  <SelectTrigger className="bg-white border border-gray-300">
-                    <SelectValue placeholder="Select designation" />
-                  </SelectTrigger>
-                  <SelectContent className='bg-white'>
+                  <SelectContent>
                     <SelectItem value="manager">Manager</SelectItem>
                     <SelectItem value="assistant">Assistant</SelectItem>
                     <SelectItem value="deputy">Deputy Manager</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  onClick={() => handleDelete(index)}
+                  variant="ghost"
+                  size="icon"
+                  className="p-1"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Delete row</span>
+                </Button>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2 text-base p-6 text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]"
+          onClick={handleAddMainActorRow}
+        >
+          <span className="mr-2">+</span>
+          Add Row
+        </Button>
+        <div className="flex justify-end">
+          <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] " size="lg">
+            Save
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
 
-            <Button
-              variant="ghost"
-              className="flex items-center gap-2 text-[#4285F4] hover:bg-[#EAF2FF]"
-              onClick={handleAddMainActorRow}
-            >
-              <span className="mr-2">+</span>
-              Add Row
-            </Button>
+  <Card className="p-6">
+      <div className="space-y-6">
+        <div className="flex justify-between items-start text-sm">
+          <div className="">
+             <p className="text-gray-600 mb-1 text-md">
+              The below columns are <span className="font-bold text-black">designed for you</span> to <span className="font-bold text-black">decide what aspects you want your team to include</span> while carrying out their work.
+            </p>
+            <p className="text-gray-600 mb-1 text-md">
+              <span className="font-bold text-black">Unattended Column</span> means that it will not be shown in the application.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <Button 
+            variant="outline" 
+            className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200"
+            onClick={() => setIsColumnDialogOpen(true)}
+            size="lg"
+          >
+            Configure Columns
+          </Button>
+        </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Tasks</h2>
-            <Button 
-              variant="outline" 
-              className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-full"
-              onClick={() => setIsColumnDialogOpen(true)}
-            >
-              Configure Columns
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  {columns.filter(col => col.visible).map((column) => (
-                    <th key={column.name} className="bg-[#EAF2FF] p-3 text-left text-[#4285F4] font-medium">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {column.name}
-                          <Info className="h-4 w-4" />
-                        </div>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {taskRows.map((row, rowIndex) => (
-                  <tr key={row.id}>
-                    <td className="p-2">
-                      <div className="bg-[#EAF2FF] p-2 rounded text-[#4285F4] font-medium w-16 text-center">
-                        {row.taskNumber}
-                      </div>
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        placeholder="Enter Task name"
-                        value={row.taskName}
-                        onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
-                        className="bg-gray-50"
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-[#EAF2FF] text-[#4285F4]">
+                {columns.filter(col => col.visible).map((column) => (
+                  <th key={column.name} className="p-3 text-left font-medium">
+                    <div className="flex items-center gap-2">
+                      {column.name}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{`Information about ${column.name}`}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {taskRows.map((row, rowIndex) => (
+                <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
+                  <td className="p-2">
+                    <div className="bg-[#EAF2FF] p-2 rounded text-[#4285F4] font-medium w-16 text-center w-full">
+                      {row.taskNumber}
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <Input
+                      placeholder="Enter Task name"
+                      value={row.taskName}
+                      onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
+                      className="bg-gray-50 focus:bg-white transition-colors duration-200"
+                    />
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={row.actions}
+                      onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
+                    >
+                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                        <SelectValue placeholder="Select action" />
+                      </SelectTrigger>
+                      <SelectContent className='bg-white'>
+                        {mainActorRows.map((mainRow, index) => (
+                          mainRow.actions && (
+                            <SelectItem key={index} value={mainRow.actions}>
+                              {mainRow.actions}
+                            </SelectItem>
+                          )
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="p-2">
+                    <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white hover:bg-gray-50 transition-colors duration-200">
+                      <Checkbox
+                        checked={row.remark}
+                        onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
+                        className="mr-2"
                       />
-                    </td>
-                    <td className="p-2">
-                      <Select
-                        value={row.actions}
-                        onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
-                      >
-                        <SelectTrigger className="bg-white border border-gray-300">
-                          <SelectValue placeholder="Select action" />
-                        </SelectTrigger>
-                        <SelectContent className='bg-white'>
-                          {mainActorRows.map((mainRow, index) => (
-                            mainRow.actions && (
-                              <SelectItem key={index} value={mainRow.actions}>
-                                {mainRow.actions}
-                              </SelectItem>
-                            )
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="p-2">
-                      <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white">
-                        <Checkbox
-                          checked={row.remark}
-                          onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm text-gray-600">Show remark</span>
-                      </div>
-                    </td>
-                    <td className="p-2">
-                      <Select
-                        value={row.entityType}
-                        onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                        multiple
-                      >
-                        <SelectTrigger className="bg-white border border-gray-300">
-                          <SelectValue placeholder="Select entity type/objects" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border border-gray-300 rounded mt-2">
-                          {entityTypes.map((parent) => {
-                            const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
-                            return (
-                              <React.Fragment key={parent.value}>
-                                <div className="flex items-center px-2 py-1">
-                                  <input
-                                    type="checkbox"
-                                    checked={allChildrenSelected}
-                                    onChange={(e) => {
-                                      const isChecked = e.target.checked;
-                                      handleEntityTypeChange(
-                                        rowIndex,
-                                        isChecked
-                                          ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
-                                          : row.entityType.filter(
-                                              (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
-                                            )
-                                      );
+                      <span className="text-sm text-gray-600">Show remark</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={row.entityType}
+                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
+                      multiple
+                    >
+                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                        <SelectValue placeholder="Select entity type/objects" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
+                        {entityTypes.map((parent) => {
+                          const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
+                          return (
+                            <React.Fragment key={parent.value}>
+                              <div className="flex items-center px-2 py-1 hover:bg-gray-100">
+                                <Checkbox
+                                  checked={allChildrenSelected}
+                                  onCheckedChange={(checked) => {
+                                    const isChecked = checked === true;
+                                    handleEntityTypeChange(
+                                      rowIndex,
+                                      isChecked
+                                        ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
+                                        : row.entityType.filter(
+                                            (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
+                                          )
+                                    );
+                                  }}
+                                  className="mr-2"
+                                />
+                                <span className="font-medium">{parent.name}</span>
+                              </div>
+                              {parent.children?.map((child) => (
+                                <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
+                                  <Checkbox
+                                    checked={row.entityType.includes(child.value)}
+                                    onCheckedChange={(checked) => {
+                                      const isChecked = checked === true;
+                                      const updatedEntityTypes = isChecked
+                                        ? [...row.entityType, child.value]
+                                        : row.entityType.filter((type) => type !== child.value);
+                                      
+                                      if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
+                                        updatedEntityTypes.push(parent.value);
+                                      } else {
+                                        updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
+                                      }
+
+                                      handleEntityTypeChange(rowIndex, updatedEntityTypes);
                                     }}
                                     className="mr-2"
                                   />
-                                  <span className="font-medium">{parent.name}</span>
+                                  <span>{child.name}</span>
                                 </div>
-                                {parent.children?.map((child) => (
-                                  <div key={child.value} className="flex items-center pl-6 px-2 py-1">
-                                    <input
-                                      type="checkbox"
-                                      checked={row.entityType.includes(child.value)}
-                                      onChange={(e) => {
-                                        const isChecked = e.target.checked;
-                                        const updatedEntityTypes = isChecked
-                                          ? [...row.entityType, child.value]
-                                          : row.entityType.filter((type) => type !== child.value);
-                                        
-                                        if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
-                                          updatedEntityTypes.push(parent.value);
-                                        } else {
-                                          updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
-                                        }
-
-                                        handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                      }}
-                                      className="mr-2"
-                                    />
-                                    <span>{child.name}</span>
-                                  </div>
-                                ))}
-                              </React.Fragment>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={row.route}
+                      onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
+                    >
+                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                        <SelectValue placeholder="Select route" />
+                      </SelectTrigger>
+                      <SelectContent className='bg-white'>
+                        <SelectItem value="image_verification">Image Verification</SelectItem>
+                        <SelectItem value="document_scan">Document Scan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  {columns.filter(col => col.visible && col.type).map((column) => (
+                    <td key={column.name} className="p-2">
+                      <div className="flex flex-col space-y-2">
+                        {renderCellInput(row, rowIndex, column, handleTaskChange)}
+                        {column.type && !row.cellConfigs?.[column.name] &&
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF] transition-colors duration-200"
+                          onClick={() => openFieldTypeDialog(rowIndex, column.name)}
+                        >
+                          Set Field Type
+                        </Button>
+                        }
+                      </div>
                     </td>
-                    <td className="p-2">
-                      <Select
-                        value={row.route}
-                        onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
-                      >
-                        <SelectTrigger className="bg-white border border-gray-300">
-                          <SelectValue placeholder="Select route" />
-                        </SelectTrigger>
-                        <SelectContent className='bg-white'>
-                          <SelectItem value="image_verification">Image Verification</SelectItem>
-                          <SelectItem value="document_scan">Document Scan</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    {columns.filter(col => col.visible && col.type).map((column) => (
-                      <td key={column.name} className="p-2">
-                        <div className="flex flex-col space-y-2">
-                          {renderCellInput(row, rowIndex, column, handleTaskChange)}
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-            <Button
-              variant="ghost"
-              className="flex items-center gap-2 text-[#4285F4] hover:bg-[#EAF2FF]"
-              onClick={handleAddTaskRow}
-            >
-              <span className="mr-2">+</span>
-              Add Row
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <Button
+          variant="ghost"
+          className="flex items-center gap-2 text-base p-6 text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]"
+          onClick={handleAddTaskRow}
+        >
+          <span className="mr-2">+</span>
+          Add Row
+        </Button>
+      </div>
 
       <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
         <DialogContent className="bg-white shadow-lg rounded-lg">
@@ -585,62 +561,50 @@ export default function Checklist({ params }: ChecklistProps) {
           </DialogHeader>
           <div className="space-y-4">
             {columns.map((column, index) => (
-              <div key={index} className="flex items-center justify-between">
+              <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-100 rounded transition-colors duration-200">
                 <span>{column.name}</span>
-                <Checkbox
+                <Switch
                   checked={column.visible}
                   onCheckedChange={(checked) => {
                     const newColumns = [...columns];
-                    newColumns[index] = { ...column, visible: checked as boolean };
+                    newColumns[index] = { ...column, visible: checked };
                     setColumns(newColumns);
                   }}
                 />
               </div>
             ))}
+            <Separator />
             <div className="space-y-2">
               <Input
                 placeholder="New column name"
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
+                className="focus:border-[#4285F4] transition-colors duration-200"
               />
-              <Select value={newColumnType} onValueChange={setNewColumnType}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select column type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="select">Select</SelectItem>
-                  <SelectItem value="checkbox">Checkbox</SelectItem>
-                </SelectContent>
-              </Select>
-              {newColumnType === 'select' && (
-                <div className="space-y-2">
-                  <div className="flex space-x-2">
-                    <Input
-                      placeholder="Add option"
-                      value={newOptionInput}
-                      onChange={(e) => setNewOptionInput(e.target.value)}
-                    />
-                    <Button onClick={addOption}>Add</Button>
-                  </div>
-                  <div className="space-y-1">
-                    {newColumnOptions.map((option, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                        <span>{option}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  {newColumnOptions.map((option, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
+                      <span>{option}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
+                        className="text-red-500 hover:bg-red-100 transition-colors duration-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              )}
-              <Button onClick={addCustomColumn}>Add Custom Column</Button>
+              </div>
+        
+              <Button 
+                onClick={addCustomColumn}
+                className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6] transition-colors duration-200"
+              >
+                Add Custom Column
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -652,13 +616,14 @@ export default function Checklist({ params }: ChecklistProps) {
         onSave={handleCellConfigSave}
         initialConfig={editingCell ? taskRows[editingCell.rowIndex].cellConfigs?.[editingCell.columnName] : undefined}
       />
+    </Card>
     </div>
   )
 }
 
 function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void) {
   const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-
+  
   const inputElement = (() => {
     switch (cellConfig.type) {
       case 'text':
@@ -726,3 +691,4 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
     </div>
   );
 }
+  
