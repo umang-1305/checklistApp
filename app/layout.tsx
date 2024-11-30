@@ -1,12 +1,12 @@
-import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Checklist App',
-  description: 'A simple checklist application',
+  description: 'A customizable checklist application',
 }
 
 export default function RootLayout({

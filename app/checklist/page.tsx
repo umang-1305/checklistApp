@@ -7,7 +7,7 @@ import { Input } from "@/app/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog"
 import { Info, ChevronDown, ChevronRight } from 'lucide-react'
-import { FieldTypeDialog } from './field-type-dialog'
+import { FieldTypeDialog } from '../../components/field-type-dialog'
 
 interface MainActorRow {
   actions: string;
@@ -46,7 +46,11 @@ interface Column {
   options?: string[];
 }
 
-export default function Checklist() {
+interface ChecklistProps {
+  type?: string;
+}
+
+export default function Checklist({ type }: ChecklistProps) {
   const [mainActorRows, setMainActorRows] = useState<MainActorRow[]>([{
     actions: '',
     mainActor: '',
@@ -194,8 +198,10 @@ export default function Checklist() {
 
   return (
     <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Checklist & Sign</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold">
+          {type ? `${type.charAt(0).toUpperCase()}${type.slice(1)} Checklist` : 'Checklist'}
+        </h1>
         <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-full">
           Publish changes
         </Button>
@@ -342,79 +348,77 @@ export default function Checklist() {
                   </td>
                   <td className="p-2">
                     <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white">
-                        <Checkbox
-                          checked={row.remark}
-                              onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
+                      <Checkbox
+                        checked={row.remark}
+                        onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
+                        className="mr-2"
+                      />
+                      <span className="text-sm text-gray-600">Show remark</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={row.entityType}
+                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
+                      multiple
+                    >
+                      <SelectTrigger className="bg-white border border-gray-300">
+                        <SelectValue placeholder="Select entity type/objects" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-300 rounded mt-2">
+                        {entityTypes.map((parent) => {
+                          const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
+                          return (
+                            <React.Fragment key={parent.value}>
+                              <div className="flex items-center px-2 py-1">
+                                <input
+                                  type="checkbox"
+                                  checked={allChildrenSelected}
+                                  onChange={(e) => {
+                                    const isChecked = e.target.checked;
+                                    handleEntityTypeChange(
+                                      rowIndex,
+                                      isChecked
+                                        ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
+                                        : row.entityType.filter(
+                                            (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
+                                          )
+                                    );
+                                  }}
                                   className="mr-2"
+                                />
+                                <span className="font-medium">{parent.name}</span>
+                              </div>
+                              {parent.children?.map((child) => (
+                                <div key={child.value} className="flex items-center pl-6 px-2 py-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.entityType.includes(child.value)}
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      const updatedEntityTypes = isChecked
+                                        ? [...row.entityType, child.value]
+                                        : row.entityType.filter((type) => type !== child.value);
+                                      
+                                      if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
+                                        updatedEntityTypes.push(parent.value);
+                                      } else {
+                                        updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
+                                      }
+
+                                      handleEntityTypeChange(rowIndex, updatedEntityTypes);
+                                    }}
+                                    className="mr-2"
                                   />
-                            <span className="text-sm text-gray-600">Show remark</span>
-                          </div>
-                        </td>
-
-                        <td className="p-2">
-  <Select
-    value={row.entityType}
-    onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-    multiple
-  >
-    <SelectTrigger className="bg-white border border-gray-300">
-      <SelectValue placeholder="Select entity type/objects" />
-    </SelectTrigger>
-    <SelectContent className="bg-white border border-gray-300 rounded mt-2">
-      {entityTypes.map((parent) => {
-        const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
-        return (
-          <React.Fragment key={parent.value}>
-            <div className="flex items-center px-2 py-1">
-              <input
-                type="checkbox"
-                checked={allChildrenSelected}
-                onChange={(e) => {
-                  const isChecked = e.target.checked;
-                  handleEntityTypeChange(
-                    rowIndex,
-                    isChecked
-                      ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
-                      : row.entityType.filter(
-                          (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
-                        )
-                  );
-                }}
-                className="mr-2"
-              />
-              <span className="font-medium">{parent.name}</span>
-            </div>
-            {parent.children?.map((child) => (
-              <div key={child.value} className="flex items-center pl-6 px-2 py-1">
-                <input
-                  type="checkbox"
-                  checked={row.entityType.includes(child.value)}
-                  onChange={(e) => {
-                    const isChecked = e.target.checked;
-                    const updatedEntityTypes = isChecked
-                      ? [...row.entityType, child.value]
-                      : row.entityType.filter((type) => type !== child.value);
-                    
-                    if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
-                      updatedEntityTypes.push(parent.value);
-                    } else {
-                      updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
-                    }
-
-                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                  }}
-                  className="mr-2"
-                />
-                <span>{child.name}</span>
-              </div>
-            ))}
-          </React.Fragment>
-        );
-      })}
-    </SelectContent>
-  </Select>
-</td>
-
+                                  <span>{child.name}</span>
+                                </div>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="p-2">
                     <Select
                       value={row.route}
@@ -572,3 +576,4 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
       return null;
   }
 }
+
