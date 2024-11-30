@@ -7,6 +7,7 @@ import { Input } from "@/app/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog"
 import { Info, ChevronDown, ChevronRight } from 'lucide-react'
+import { FieldTypeDialog } from './field-type-dialog'
 
 interface MainActorRow {
   actions: string;
@@ -71,6 +72,8 @@ export default function Checklist() {
   const [newColumnType, setNewColumnType] = useState('text');
   const [newColumnOptions, setNewColumnOptions] = useState<string[]>([]);
   const [newOptionInput, setNewOptionInput] = useState('');
+  const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<string>('');
 
   const entityTypes: EntityType[] = [
     {
@@ -162,6 +165,11 @@ export default function Checklist() {
       setNewColumnOptions([...newColumnOptions, newOptionInput]);
       setNewOptionInput('');
     }
+  };
+
+  const openFieldTypeDialog = (columnName: string) => {
+    setEditingColumn(columnName);
+    setIsFieldTypeDialogOpen(true);
   };
 
   return (
@@ -267,9 +275,21 @@ export default function Checklist() {
               <tr>
                 {columns.filter(col => col.visible).map((column) => (
                   <th key={column.name} className="bg-[#EAF2FF] p-3 text-left text-[#4285F4] font-medium">
-                    <div className="flex items-center gap-2">
-                      {column.name}
-                      <Info className="h-4 w-4" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {column.name}
+                        <Info className="h-4 w-4" />
+                      </div>
+                      {column.type && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+                          onClick={() => openFieldTypeDialog(column.name)}
+                        >
+                          Set Field Type
+                        </Button>
+                      )}
                     </div>
                   </th>
                 ))}
@@ -330,13 +350,11 @@ export default function Checklist() {
     <SelectTrigger className="bg-white border border-gray-300">
       <SelectValue placeholder="Select entity type/objects" />
     </SelectTrigger>
-    {/* Ensure dropdown opens downward */}
     <SelectContent className="bg-white border border-gray-300 rounded mt-2">
       {entityTypes.map((parent) => {
         const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
         return (
           <React.Fragment key={parent.value}>
-            {/* Parent Checkbox */}
             <div className="flex items-center px-2 py-1">
               <input
                 type="checkbox"
@@ -356,7 +374,6 @@ export default function Checklist() {
               />
               <span className="font-medium">{parent.name}</span>
             </div>
-            {/* Child Checkboxes */}
             {parent.children?.map((child) => (
               <div key={child.value} className="flex items-center pl-6 px-2 py-1">
                 <input
@@ -368,7 +385,6 @@ export default function Checklist() {
                       ? [...row.entityType, child.value]
                       : row.entityType.filter((type) => type !== child.value);
                     
-                    // Automatically check parent if all children are selected
                     if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
                       updatedEntityTypes.push(parent.value);
                     } else {
@@ -388,8 +404,6 @@ export default function Checklist() {
     </SelectContent>
   </Select>
 </td>
-
-
 
                   <td className="p-2">
                     <Select
@@ -489,49 +503,44 @@ export default function Checklist() {
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
               />
-              {/* <Select value={newColumnType} onValueChange={setNewColumnType}>
-                <SelectTrigger className="bg-white border border-gray-300">
-                  <SelectValue placeholder="Select column type" />
-                </SelectTrigger>
-                <SelectContent className='bg-white'>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="checkbox">Checkbox</SelectItem>
-                  <SelectItem value="select">Select</SelectItem>
-                </SelectContent>
-              </Select>
-              {newColumnType === 'select' && ( */}
-                <div className="space-y-2">
-                  <div className="flex space-x-2">
-                    {/* <Input
-                      placeholder="Add option"
-                      value={newOptionInput}
-                      onChange={(e) => setNewOptionInput(e.target.value)}
-                    /> */}
-                    {/* <Button onClick={addOption}>Add</Button> */}
-                  </div>
-                  <div className="space-y-1">
-                    {newColumnOptions.map((option, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                        <span>{option}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <div className="flex space-x-2">
                 </div>
-          
+                <div className="space-y-1">
+                  {newColumnOptions.map((option, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
+                      <span>{option}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+        
               <Button onClick={addCustomColumn}>Add Custom Column</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+      <FieldTypeDialog
+        open={isFieldTypeDialogOpen}
+        onOpenChange={setIsFieldTypeDialogOpen}
+        columnName={editingColumn}
+        onSave={(config) => {
+          const columnIndex = columns.findIndex(col => col.name === editingColumn);
+          if (columnIndex !== -1) {
+            const newColumns = [...columns];
+            newColumns[columnIndex] = { ...newColumns[columnIndex], ...config };
+            setColumns(newColumns);
+          }
+          setIsFieldTypeDialogOpen(false);
+        }}
+      />
     </div>
   )
 }
-
