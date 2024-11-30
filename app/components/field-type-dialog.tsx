@@ -9,25 +9,40 @@ interface FieldTypeDialogProps {
   onOpenChange: (open: boolean) => void;
   columnName: string;
   onSave: (config: { type: string; options?: string[] }) => void;
+  initialConfig?: { type: string; options?: string[] };
+  onConfigChange?: (config: { type: string; options?: string[] }) => void;
 }
 
 export function FieldTypeDialog({
   open,
   onOpenChange,
   columnName,
-  onSave
+  onSave,
+  initialConfig,
+  onConfigChange
 }: FieldTypeDialogProps) {
-  const [fieldType, setFieldType] = useState('text');
-  const [options, setOptions] = useState<string[]>([]);
+  const [fieldType, setFieldType] = useState(initialConfig?.type || '');
+  const [options, setOptions] = useState<string[]>(initialConfig?.options || []);
   const [newOption, setNewOption] = useState('');
 
+  // Update parent component with real-time changes
+  useEffect(() => {
+    if (onConfigChange) {
+      onConfigChange({
+        type: fieldType,
+        options: fieldType === 'select' || fieldType === 'multi-select' ? options : undefined
+      });
+    }
+  }, [fieldType, options, onConfigChange]);
+
+  // Reset state when dialog opens/closes
   useEffect(() => {
     if (open) {
-      setFieldType('text');
-      setOptions([]);
+      setFieldType(initialConfig?.type || '');
+      setOptions(initialConfig?.options || []);
       setNewOption('');
     }
-  }, [open]);
+  }, [open, initialConfig]);
 
   const handleSave = () => {
     onSave({
@@ -38,7 +53,8 @@ export function FieldTypeDialog({
 
   const addOption = () => {
     if (newOption && !options.includes(newOption)) {
-      setOptions([...options, newOption]);
+      const updatedOptions = [...options, newOption];
+      setOptions(updatedOptions);
       setNewOption('');
     }
   };
@@ -50,9 +66,17 @@ export function FieldTypeDialog({
           <DialogTitle>Set Field Type for {columnName}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <Select value={fieldType} onValueChange={setFieldType}>
+          <Select 
+            value={fieldType} 
+            onValueChange={(value) => {
+              setFieldType(value);
+              if (value !== 'select' && value !== 'multi-select') {
+                setOptions([]);
+              }
+            }}
+          >
             <SelectTrigger className="bg-white border border-gray-300">
-              <SelectValue placeholder="Select field type" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-white">
               <SelectItem value="text">Text</SelectItem>
@@ -62,7 +86,6 @@ export function FieldTypeDialog({
               <SelectItem value="checkbox">Checkbox</SelectItem>
             </SelectContent>
           </Select>
-
           {(fieldType === 'select' || fieldType === 'multi-select') && (
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
@@ -86,7 +109,10 @@ export function FieldTypeDialog({
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => setOptions(options.filter((_, i) => i !== index))}
+                      onClick={() => {
+                        const updatedOptions = options.filter((_, i) => i !== index);
+                        setOptions(updatedOptions);
+                      }}
                     >
                       Remove
                     </Button>
@@ -106,4 +132,3 @@ export function FieldTypeDialog({
     </Dialog>
   );
 }
-
