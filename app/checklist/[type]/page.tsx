@@ -1,24 +1,28 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Button } from "@/app/components/ui/button"
 import { Checkbox } from "@/app/components/ui/checkbox"
 import { Input } from "@/app/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog"
-import { Info, Trash2 , Settings, Plus} from 'lucide-react'
+import { Info, Trash2, Settings, Plus } from 'lucide-react'
 import { FieldTypeDialog } from '../../components/field-type-dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
+import { toast } from "@/app/components/ui/use-toast"
+
 
 interface MainActorRow {
   actions: string;
   mainActor: string;
   team: string;
   designation: string;
+  id: string;
+  person: string;
 }
 
 interface EntityType {
@@ -57,25 +61,46 @@ interface Column {
 }
 
 interface ChecklistProps {
-  params: {
+  params: Promise<{
     type: string;
-  }
+  }>;
+}
+
+interface ActorData {
+  Designated_Actor: string;
+  field: string;
+  designation: string;
+  id: string;
+  person: string;
+}
+
+interface EntityData {
+  [key: string]: {
+    ID?: string;
+    Name: string;
+    Type?: string;
+  };
 }
 
 export default function Checklist({ params }: ChecklistProps) {
-   const [type, setType] = useState<string>('');
+  const [type, setType] = useState<string>("");
 
-   useEffect(() => {
-     if (params.type) {
-       setType(params.type);
-     }
-   }, [params]);
+  useEffect(() => {
+    async function resolveParams() {
+      const resolvedParams = await params;
+      setType(resolvedParams.type);
+    }
+
+    resolveParams();
+  }, [params]);
 
   const [mainActorRows, setMainActorRows] = useState<MainActorRow[]>([{
     actions: '',
     mainActor: '',
     team: '',
-    designation: ''
+    designation: '',
+    id: '',
+    person: ''
   }]);
 
   const [taskRows, setTaskRows] = useState<TaskRow[]>([{
@@ -105,43 +130,85 @@ export default function Checklist({ params }: ChecklistProps) {
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
-  const entityTypes: EntityType[] = [
-    {
-      name: 'Machine',
-      value: 'machine',
-      children: [
-        { name: 'Machine 1', value: 'machine_1' },
-        { name: 'Machine 2', value: 'machine_2' },
-        { name: 'Machine 3', value: 'machine_3' },
-      ]
-    },
-    {
-      name: 'Raw Material',
-      value: 'raw_material',
-      children: [
-        { name: 'Raw Material 1', value: 'raw_material_1' },
-        { name: 'Raw Material 2', value: 'raw_material_2' },
-        { name: 'Raw Material 3', value: 'raw_material_3' },
-      ]
-    },
-    {
-      name: 'Lots',
-      value: 'lots',
-      children: [
-        { name: 'Lot 1', value: 'lot_1' },
-        { name: 'Lot 2', value: 'lot_2' },
-        { name: 'Lot 3', value: 'lot_3' },
-      ]
-    }
-  ];
+  const [actorData, setActorData] = useState<ActorData[]>([]);
+  const [entityData, setEntityData] = useState<EntityData>({});
+
+  useEffect(() => {
+    const fetchActorData = async () => {
+      try {
+        const response = await fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Actors');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.status === 'success') {
+          setActorData(data.data);
+        } else {
+          console.error('Failed to fetch actor data');
+        }
+      } catch (error) {
+        console.error('Error fetching actor data:', error);
+      }
+    };
+
+    fetchActorData();
+    console.log('Actor data:', actorData);
+  }, []);
+
+  useEffect(() => {
+    const fetchEntityData = async () => {
+      try {
+        const response = await fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Entities');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.status === 'success') {
+          setEntityData(data.data);
+        } else {
+          console.error('Failed to fetch entity data');
+        }
+      } catch (error) {
+        console.error('Error fetching entity data:', error);
+      }
+    };
+
+    fetchEntityData();
+  }, []);
+
+  const entityTypes: EntityType[] = useMemo(() => {
+    return Object.entries(entityData).map(([key, value]) => {
+      const children = Object.entries(value)
+        .filter(([childKey]) => childKey !== 'id' && typeof value[childKey] === 'object')
+        .map(([childKey, childValue]) => ({
+          name: (childValue as { Name?: string })?.Name || childKey,
+          value: ((childValue as { Name?: string })?.Name || childKey).toLowerCase().replace(/\s+/g, '_'),
+        }));
+
+      return {
+        name: value.id || key,
+        value: (value.id || key).toLowerCase().replace(/\s+/g, '_'),
+        children: children
+      };
+    });
+  }, [entityData]);
 
   const handleAddMainActorRow = () => {
-    setMainActorRows([...mainActorRows, { actions: '', mainActor: '', team: '', designation: '' }]);
+    setMainActorRows([...mainActorRows, { actions: '', mainActor: '', team: '', designation: '', id: '', person: '' }]);
   };
 
   const handleMainActorChange = (index: number, field: keyof MainActorRow, value: string) => {
     const newRows = [...mainActorRows];
     newRows[index] = { ...newRows[index], [field]: value };
+
+    if (field === 'mainActor') {
+      const selectedActor = actorData.find(actor => actor.Designated_Actor === value);
+      if (selectedActor) {
+        newRows[index].team = selectedActor.field;
+        newRows[index].designation = selectedActor.designation;
+      }
+    }
+
     setMainActorRows(newRows);
   };
 
@@ -228,6 +295,108 @@ export default function Checklist({ params }: ChecklistProps) {
 
    const title = type ? `${type.charAt(0).toUpperCase() + type.slice(1)} Checklist` : 'Checklist & Sign'
 
+  const publishChanges = useCallback(async () => {
+    const stepMapping = {
+      'MEQ': 'step1',
+      'DRM': 'step2',
+      'RMQ': 'step3'
+    };
+
+    const step = stepMapping[type as keyof typeof stepMapping] || 'step3';
+
+    const tasks = taskRows.reduce((acc, task, index) => {
+      const taskKey = `task${index + 1}`;
+      const actions = mainActorRows.reduce((actionsAcc, actor, actorIndex) => {
+        if (task.actions === actor.actions && actor.actions && actor.mainActor) {
+          const actionKey = `action${actorIndex + 1}`;
+          actionsAcc[actionKey] = {
+            actionType: actor.actions,
+            actor: actor.mainActor,
+            isSigned: false
+          };
+        }
+        return actionsAcc;
+      }, {} as Record<string, any>);
+
+      // Only add the task if it has a name, at least one action, and an entity type
+      if (task.taskName && Object.keys(actions).length > 0 && task.entityType.length > 0) {
+        acc[taskKey] = {
+          actions,
+          customInput: {
+            input: false,
+            inputText: "",
+            name: task.taskName
+          },
+          entityObject: task.entityType.map(entity => ({
+            id: entity,
+            name: entity
+          })),
+          entityType: [task.entityType[0]],
+          remark: {
+            input: task.remark,
+            remarkText: "",
+            showRemark: task.remark
+          },
+          route: task.route || "",
+          taskLabel: task.taskName
+        };
+
+        // Add custom columns
+        columns.forEach(column => {
+          if (column.type && column.type !== 'checkbox' && task[column.name]) {
+            acc[taskKey].customInput[column.name] = task[column.name];
+          }
+        });
+      }
+
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Check if tasks object is empty
+    if (Object.keys(tasks).length === 0) {
+      toast({
+        title: "Error publishing changes",
+        description: "Please add at least one valid task with a name, an action, and an entity type before publishing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload = {
+      [step]: {
+        tasks
+      }
+    };
+
+    try {
+      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow9', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Network response was not ok');
+      }
+
+      const data = await response.json();
+      toast({
+        title: "Changes published successfully",
+        description: "Your changes have been saved and published.",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error publishing changes",
+        description: error instanceof Error ? error.message : "There was a problem publishing your changes. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [type, taskRows, mainActorRows, columns]);
+
   return (
     <div className="p-6 space-y-8">
       <div className="flex justify-between items-center">
@@ -235,7 +404,7 @@ export default function Checklist({ params }: ChecklistProps) {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-2xl font-semibold">{title}</CardTitle>
             <div className="flex items-center space-x-4">
-              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-lg ">
+              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-lg" onClick={publishChanges}>
                 Publish changes
               </Button>
               <Avatar>
@@ -269,66 +438,50 @@ export default function Checklist({ params }: ChecklistProps) {
               />
               <Select
                 value={row.mainActor}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, "mainActor", value)
-                }
+                onValueChange={(value) => handleMainActorChange(index, "mainActor", value)}
               >
                 <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select Actor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="realtime">Check on Realtime</SelectItem>
-                  <SelectItem value="john">John</SelectItem>
-                  <SelectItem value="david">David</SelectItem>
-                  <SelectItem value="joe">Joe</SelectItem>
+                  {actorData.map((actor) => (
+                    <SelectItem key={actor.id} value={actor.Designated_Actor}>
+                      {actor.Designated_Actor}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select
-                value={row.mainActor === "realtime" ? "" : row.team}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, "team", value)
-                }
-                disabled={row.mainActor === "realtime"}
+                value={row.team}
+                onValueChange={(value) => handleMainActorChange(index, "team", value)}
               >
-                <SelectTrigger
-                  className={`bg-background border border-input ${
-                    row.mainActor === "realtime"
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
+                <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select the team" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="qa">QA</SelectItem>
-                  <SelectItem value="qc">QC</SelectItem>
-                  <SelectItem value="it">IT</SelectItem>
+                  {Array.from(new Set(actorData.map(actor => actor.field))).map((field) => (
+                    <SelectItem key={field} value={field}>
+                      {field}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={row.mainActor === "realtime" ? "" : row.designation}
-                  onValueChange={(value) =>
-                    handleMainActorChange(index, "designation", value)
-                  }
-                  disabled={row.mainActor === "realtime"}
-                >
-                  <SelectTrigger
-                    className={`bg-background border border-input ${
-                      row.mainActor === "realtime"
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                  >
-                    <SelectValue placeholder="Select the Designation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="assistant">Assistant</SelectItem>
-                    <SelectItem value="deputy">Deputy Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
+              <Select
+                value={row.designation}
+                onValueChange={(value) => handleMainActorChange(index, "designation", value)}
+              >
+                <SelectTrigger className="bg-background border border-input">
+                  <SelectValue placeholder="Select the Designation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from(new Set(actorData.map(actor => actor.designation))).map((designation) => (
+                    <SelectItem key={designation} value={designation}>
+                      {designation}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
                   onClick={() => handleDelete(index)}
                   variant="ghost"
                   size="icon"
@@ -337,7 +490,6 @@ export default function Checklist({ params }: ChecklistProps) {
                   <Trash2 className="h-4 w-4" />
                   <span className="sr-only">Delete row</span>
                 </Button>
-              </div>
             </div>
           ))}
         </div>
@@ -456,54 +608,42 @@ export default function Checklist({ params }: ChecklistProps) {
                         <SelectValue placeholder="Select entity type/objects" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => {
-                          const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
-                          return (
-                            <React.Fragment key={parent.value}>
-                              <div className="flex items-center px-2 py-1 hover:bg-gray-100">
+                        {entityTypes.map((parent) => (
+                          <React.Fragment key={parent.value}>
+                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
+                              <Checkbox
+                                checked={parent.children.every((child) => row.entityType.includes(child.value))}
+                                onCheckedChange={(checked) => {
+                                  const isChecked = checked === true;
+                                  handleEntityTypeChange(
+                                    rowIndex,
+                                    isChecked
+                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
+                                      : row.entityType.filter((type) => !parent.children.some((child) => child.value === type))
+                                  );
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="font-medium">{parent.name}</span>
+                            </div>
+                            {parent.children.map((child) => (
+                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
                                 <Checkbox
-                                  checked={allChildrenSelected}
+                                  checked={row.entityType.includes(child.value)}
                                   onCheckedChange={(checked) => {
                                     const isChecked = checked === true;
-                                    handleEntityTypeChange(
-                                      rowIndex,
-                                      isChecked
-                                        ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
-                                        : row.entityType.filter(
-                                            (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
-                                          )
-                                    );
+                                    const updatedEntityTypes = isChecked
+                                      ? [...row.entityType, child.value]
+                                      : row.entityType.filter((type) => type !== child.value);
+                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
                                   }}
                                   className="mr-2"
                                 />
-                                <span className="font-medium">{parent.name}</span>
+                                <span>{child.name}</span>
                               </div>
-                              {parent.children?.map((child) => (
-                                <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
-                                  <Checkbox
-                                    checked={row.entityType.includes(child.value)}
-                                    onCheckedChange={(checked) => {
-                                      const isChecked = checked === true;
-                                      const updatedEntityTypes = isChecked
-                                        ? [...row.entityType, child.value]
-                                        : row.entityType.filter((type) => type !== child.value);
-                                      
-                                      if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
-                                        updatedEntityTypes.push(parent.value);
-                                      } else {
-                                        updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
-                                      }
-
-                                      handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                    }}
-                                    className="mr-2"
-                                  />
-                                  <span>{child.name}</span>
-                                </div>
-                              ))}
-                            </React.Fragment>
-                          );
-                        })}
+                            ))}
+                          </React.Fragment>
+                        ))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -525,16 +665,6 @@ export default function Checklist({ params }: ChecklistProps) {
                     <td key={column.name} className="p-2">
                       <div className="flex flex-col space-y-2">
                         {renderCellInput(row, rowIndex, column, handleTaskChange)}
-                        {column.type && !row.cellConfigs?.[column.name] &&
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF] transition-colors duration-200"
-                          onClick={() => openFieldTypeDialog(rowIndex, column.name)}
-                        >
-                          Set Field Type
-                        </Button>
-                        }
                       </div>
                     </td>
                   ))}
@@ -691,4 +821,4 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
     </div>
   );
 }
-  
+
