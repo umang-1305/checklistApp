@@ -322,7 +322,6 @@ export default function Checklist() {
                         </td>
 
                         <td className="p-2">
-                        
   <Select
     value={row.entityType}
     onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
@@ -331,52 +330,65 @@ export default function Checklist() {
     <SelectTrigger className="bg-white border border-gray-300">
       <SelectValue placeholder="Select entity type/objects" />
     </SelectTrigger>
-    <SelectContent className="bg-white border border-gray-300 rounded">
-      {entityTypes.map((parent) => (
-        <React.Fragment key={parent.value}>
-          {/* Parent Checkbox */}
-          <div className="flex items-center px-2 py-1">
-            <input
-              type="checkbox"
-              checked={row.entityType.includes(parent.value)}
-              onChange={(e) => {
-                const isChecked = e.target.checked;
-                handleEntityTypeChange(
-                  rowIndex,
-                  isChecked
-                    ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
-                    : row.entityType.filter((type) => type !== parent.value && !parent.children.some((child) => child.value === type))
-                );
-              }}
-              className="mr-2"
-            />
-            <span className="font-medium">{parent.name}</span>
-          </div>
-          {/* Child Checkboxes */}
-          {parent.children?.map((child) => (
-            <div key={child.value} className="flex items-center pl-6 px-2 py-1">
+    {/* Ensure dropdown opens downward */}
+    <SelectContent className="bg-white border border-gray-300 rounded mt-2">
+      {entityTypes.map((parent) => {
+        const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
+        return (
+          <React.Fragment key={parent.value}>
+            {/* Parent Checkbox */}
+            <div className="flex items-center px-2 py-1">
               <input
                 type="checkbox"
-                checked={row.entityType.includes(child.value)}
+                checked={allChildrenSelected}
                 onChange={(e) => {
                   const isChecked = e.target.checked;
                   handleEntityTypeChange(
                     rowIndex,
                     isChecked
-                      ? [...row.entityType, child.value]
-                      : row.entityType.filter((type) => type !== child.value)
+                      ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
+                      : row.entityType.filter(
+                          (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
+                        )
                   );
                 }}
                 className="mr-2"
               />
-              <span>{child.name}</span>
+              <span className="font-medium">{parent.name}</span>
             </div>
-          ))}
-        </React.Fragment>
-      ))}
+            {/* Child Checkboxes */}
+            {parent.children?.map((child) => (
+              <div key={child.value} className="flex items-center pl-6 px-2 py-1">
+                <input
+                  type="checkbox"
+                  checked={row.entityType.includes(child.value)}
+                  onChange={(e) => {
+                    const isChecked = e.target.checked;
+                    const updatedEntityTypes = isChecked
+                      ? [...row.entityType, child.value]
+                      : row.entityType.filter((type) => type !== child.value);
+                    
+                    // Automatically check parent if all children are selected
+                    if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
+                      updatedEntityTypes.push(parent.value);
+                    } else {
+                      updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
+                    }
+
+                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
+                  }}
+                  className="mr-2"
+                />
+                <span>{child.name}</span>
+              </div>
+            ))}
+          </React.Fragment>
+        );
+      })}
     </SelectContent>
   </Select>
 </td>
+
 
 
                   <td className="p-2">
@@ -477,7 +489,7 @@ export default function Checklist() {
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
               />
-              <Select value={newColumnType} onValueChange={setNewColumnType}>
+              {/* <Select value={newColumnType} onValueChange={setNewColumnType}>
                 <SelectTrigger className="bg-white border border-gray-300">
                   <SelectValue placeholder="Select column type" />
                 </SelectTrigger>
@@ -488,15 +500,15 @@ export default function Checklist() {
                   <SelectItem value="select">Select</SelectItem>
                 </SelectContent>
               </Select>
-              {newColumnType === 'select' && (
+              {newColumnType === 'select' && ( */}
                 <div className="space-y-2">
                   <div className="flex space-x-2">
-                    <Input
+                    {/* <Input
                       placeholder="Add option"
                       value={newOptionInput}
                       onChange={(e) => setNewOptionInput(e.target.value)}
-                    />
-                    <Button onClick={addOption}>Add</Button>
+                    /> */}
+                    {/* <Button onClick={addOption}>Add</Button> */}
                   </div>
                   <div className="space-y-1">
                     {newColumnOptions.map((option, index) => (
@@ -513,7 +525,7 @@ export default function Checklist() {
                     ))}
                   </div>
                 </div>
-              )}
+          
               <Button onClick={addCustomColumn}>Add Custom Column</Button>
             </div>
           </div>
