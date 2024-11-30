@@ -22,6 +22,11 @@ interface EntityType {
   children?: EntityType[];
 }
 
+interface CellConfig {
+  type: string;
+  options?: string[];
+}
+
 interface TaskRow {
   id: string;
   taskNumber: string;
@@ -31,6 +36,7 @@ interface TaskRow {
   entityType: string[];
   route: string;
   [key: string]: any; // For custom columns
+  cellConfigs?: { [key: string]: CellConfig };
 }
 
 interface Column {
@@ -74,6 +80,7 @@ export default function Checklist() {
   const [newOptionInput, setNewOptionInput] = useState('');
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingColumn, setEditingColumn] = useState<string>('');
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnName: string } | null>(null);
 
   const entityTypes: EntityType[] = [
     {
@@ -167,9 +174,22 @@ export default function Checklist() {
     }
   };
 
-  const openFieldTypeDialog = (columnName: string) => {
-    setEditingColumn(columnName);
+  const openFieldTypeDialog = (rowIndex: number, columnName: string) => {
+    setEditingCell({ rowIndex, columnName });
     setIsFieldTypeDialogOpen(true);
+  };
+
+  const handleCellConfigSave = (config: CellConfig) => {
+    if (editingCell) {
+      const { rowIndex, columnName } = editingCell;
+      const newRows = [...taskRows];
+      if (!newRows[rowIndex].cellConfigs) {
+        newRows[rowIndex].cellConfigs = {};
+      }
+      newRows[rowIndex].cellConfigs[columnName] = config;
+      setTaskRows(newRows);
+    }
+    setIsFieldTypeDialogOpen(false);
   };
 
   return (
@@ -280,16 +300,6 @@ export default function Checklist() {
                         {column.name}
                         <Info className="h-4 w-4" />
                       </div>
-                      {column.type && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
-                          onClick={() => openFieldTypeDialog(column.name)}
-                        >
-                          Set Field Type
-                        </Button>
-                      )}
                     </div>
                   </th>
                 ))}
@@ -421,45 +431,17 @@ export default function Checklist() {
                   </td>
                   {columns.filter(col => col.visible && col.type).map((column) => (
                     <td key={column.name} className="p-2">
-                      {column.type === 'text' && (
-                        <Input
-                          value={row[column.name] || ''}
-                          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-                          className="bg-gray-50"
-                        />
-                      )}
-                      {column.type === 'number' && (
-                        <Input
-                          type="number"
-                          value={row[column.name] || ''}
-                          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-                          className="bg-gray-50"
-                        />
-                      )}
-                      {column.type === 'checkbox' && (
-                        <Checkbox
-                          checked={row[column.name] || false}
-                          onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
-                          className="border-2 border-gray-300 rounded-sm"
-                        />
-                      )}
-                      {column.type === 'select' && column.options && (
-                        <Select
-                          value={row[column.name] || ''}
-                          onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
+                      <div className="flex flex-col space-y-2">
+                        {renderCellInput(row, rowIndex, column)}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+                          onClick={() => openFieldTypeDialog(rowIndex, column.name)}
                         >
-                          <SelectTrigger className="bg-white border border-gray-300">
-                            <SelectValue placeholder={`Select ${column.name}`} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {column.options.map((option, optionIndex) => (
-                              <SelectItem key={optionIndex} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                          Set Field Type
+                        </Button>
+                      </div>
                     </td>
                   ))}
                 </tr>
@@ -530,17 +512,63 @@ export default function Checklist() {
       <FieldTypeDialog
         open={isFieldTypeDialogOpen}
         onOpenChange={setIsFieldTypeDialogOpen}
-        columnName={editingColumn}
-        onSave={(config) => {
-          const columnIndex = columns.findIndex(col => col.name === editingColumn);
-          if (columnIndex !== -1) {
-            const newColumns = [...columns];
-            newColumns[columnIndex] = { ...newColumns[columnIndex], ...config };
-            setColumns(newColumns);
-          }
-          setIsFieldTypeDialogOpen(false);
-        }}
+        columnName={editingCell?.columnName || ''}
+        onSave={handleCellConfigSave}
+        initialConfig={editingCell ? taskRows[editingCell.rowIndex].cellConfigs?.[editingCell.columnName] : undefined}
       />
     </div>
   )
+}
+
+function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
+  const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
+
+  switch (cellConfig.type) {
+    case 'text':
+      return (
+        <Input
+          value={row[column.name] || ''}
+          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          className="bg-gray-50"
+        />
+      );
+    case 'number':
+      return (
+        <Input
+          type="number"
+          value={row[column.name] || ''}
+          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          className="bg-gray-50"
+        />
+      );
+    case 'checkbox':
+      return (
+        <Checkbox
+          checked={row[column.name] || false}
+          onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
+          className="border-2 border-gray-300 rounded-sm"
+        />
+      );
+    case 'select':
+    case 'multi-select':
+      return (
+        <Select
+          value={row[column.name] || ''}
+          onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
+        >
+          <SelectTrigger className="bg-white border border-gray-300">
+            <SelectValue placeholder={`Select ${column.name}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {cellConfig.options?.map((option, optionIndex) => (
+              <SelectItem key={optionIndex} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    default:
+      return null;
+  }
 }
