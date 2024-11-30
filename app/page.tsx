@@ -22,10 +22,9 @@ export default function Home() {
             <SelectValue placeholder="Choose a checklist type" />
           </SelectTrigger>
           <SelectContent className='bg-white'>
-            <SelectItem value="production">Production Checklist</SelectItem>
-            <SelectItem value="quality">Quality Control Checklist</SelectItem>
-            <SelectItem value="safety">Safety Inspection Checklist</SelectItem>
-            <SelectItem value="maintenance">Maintenance Checklist</SelectItem>
+            <SelectItem value="MEQ">Manufacturing Equipments</SelectItem>
+            <SelectItem value="DRM">Dispensing of Raw Materials</SelectItem>
+            <SelectItem value="RMQ">Raw material Requisition</SelectItem>
           </SelectContent>
         </Select>
       </div>
