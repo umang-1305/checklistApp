@@ -35,7 +35,7 @@ interface TaskRow {
   remark: boolean;
   entityType: string[];
   route: string;
-  [key: string]: any; // For custom columns
+  [key: string]: any; 
   cellConfigs?: { [key: string]: CellConfig };
 }
 
@@ -166,17 +166,16 @@ export default function Checklist({ type }: ChecklistProps) {
       setNewColumnType('text');
       setNewColumnOptions([]);
       setNewOptionInput('');
-      // Add the new column to all existing task rows
       setTaskRows(taskRows.map(row => ({ ...row, [newColumnName]: newColumnType === 'checkbox' ? false : '' })));
     }
   };
 
-  const addOption = () => {
-    if (newOptionInput && !newColumnOptions.includes(newOptionInput)) {
-      setNewColumnOptions([...newColumnOptions, newOptionInput]);
-      setNewOptionInput('');
-    }
-  };
+  // const addOption = () => {
+  //   if (newOptionInput && !newColumnOptions.includes(newOptionInput)) {
+  //     setNewColumnOptions([...newColumnOptions, newOptionInput]);
+  //     setNewOptionInput('');
+  //   }
+  // };
 
   const openFieldTypeDialog = (rowIndex: number, columnName: string) => {
     setEditingCell({ rowIndex, columnName });
@@ -203,7 +202,7 @@ export default function Checklist({ type }: ChecklistProps) {
           {type ? `${type.charAt(0).toUpperCase()}${type.slice(1)} Checklist` : 'Checklist'}
         </h1>
         <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-full">
-          Publish changes
+          Publish change
         </Button>
       </div>
 
@@ -231,6 +230,7 @@ export default function Checklist({ type }: ChecklistProps) {
                 <SelectValue placeholder="Select actor" />
               </SelectTrigger>
               <SelectContent  className='bg-white'>
+                <SelectItem value="realtime">Check on Realtime</SelectItem>
                 <SelectItem value="john">John</SelectItem>
                 <SelectItem value="david">David</SelectItem>
                 <SelectItem value="joe">Joe</SelectItem>
