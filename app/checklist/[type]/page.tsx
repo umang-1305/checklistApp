@@ -462,16 +462,16 @@ export default function Checklist({ params }: ChecklistProps) {
                 className="bg-muted"
               />
               <Select
-                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.team}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, "team", value)
-                }
-                disabled={row.mainActor.toLowerCase() === "realtime"}
+                value={row.mainActor}
+                onValueChange={(value) => handleMainActorChange(index, "mainActor", value)}
               >
                 <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select Actor" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem key="realtime" value="realtime">
+                    Check on Realtime
+                  </SelectItem>
                   {actorData.map((actor) => (
                     <SelectItem key={actor.id} value={actor.Designated_Actor}>
                       {actor.Designated_Actor}
@@ -499,8 +499,9 @@ export default function Checklist({ params }: ChecklistProps) {
               </Select>
               <div className="flex flex-row gap-x-3">
               <Select
-                value={row.designation}
+                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.designation}
                 onValueChange={(value) => handleMainActorChange(index, "designation", value)}
+                 disabled={row.mainActor.toLowerCase() === "realtime"}
               >
                 <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select the Designation" />
@@ -752,24 +753,6 @@ export default function Checklist({ params }: ChecklistProps) {
                 onChange={(e) => setNewColumnName(e.target.value)}
                 className="focus:border-[#4285F4] transition-colors duration-200"
               />
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  {newColumnOptions.map((option, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                      <span>{option}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
-                        className="text-red-500 hover:bg-red-100 transition-colors duration-200"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-        
               <Button 
                 onClick={addCustomColumn}
                 className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6] transition-colors duration-200"
