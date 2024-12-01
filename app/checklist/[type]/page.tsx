@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview'
 import { Separator } from '@/components/ui/separator'
 import { Button } from "@/app/components/ui/button"
 import { Checkbox } from "@/app/components/ui/checkbox"
@@ -429,7 +430,7 @@ export default function Checklist({ params }: ChecklistProps) {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-2xl font-semibold">{title}</CardTitle>
             <div className="flex items-center space-x-4">
-              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-lg" onClick={publishChanges}>
+              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-2xl p-4 text-lg font-normal" onClick={publishChanges} size="lg">
                 Publish changes
               </Button>
               <Avatar>
@@ -443,7 +444,7 @@ export default function Checklist({ params }: ChecklistProps) {
 
      <Card className="w-full">
       <CardContent className="p-6 space-y-6">
-        <div className="border border-input rounded-md p-4 space-y-4">
+        <div className="border border-input rounded-2xl p-4 space-y-4">
         <div className="grid grid-cols-4 gap-4 pb-2">
           <div className="font-medium">Actions</div>
           <div className="font-medium">Main Actor</div>
@@ -515,8 +516,8 @@ export default function Checklist({ params }: ChecklistProps) {
                 </SelectContent>
               </Select>
               <Button
-                  onClick={() => handleDelete(index)}
-                  variant="ghost"
+                  onClick={() => handleDelete()}
+                  variant="outline"
                   size="icon"
                   className="p-1"
                 >
@@ -640,53 +641,54 @@ export default function Checklist({ params }: ChecklistProps) {
                       </div>
                     </td>
                     <td className="p-2">
-                      <Select
-                        value={row.entityType}
-                        onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                        multiple
-                      >
-                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
-                          <SelectValue placeholder="Select entity type/objects" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                          {entityTypes.map((parent) => (
-                            <React.Fragment key={parent.value}>
-                              <div className="flex items-center px-2 py-1 hover:bg-gray-100">
+                    <Select
+                      value={row.entityType.join(',')}
+                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
+                    >
+                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                        <SelectValue>
+                          <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
+                        {entityTypes.map((parent) => (
+                          <React.Fragment key={parent.value}>
+                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
+                              <Checkbox
+                                checked={parent.children?.every((child) => row.entityType.includes(child.value))}
+                                onCheckedChange={(checked) => {
+                                  const isChecked = checked === true;
+                                  handleEntityTypeChange(
+                                    rowIndex,
+                                    isChecked
+                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
+                                      : row.entityType.filter((type) => !parent.children?.some((child) => child.value === type))
+                                  );
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="font-medium">{parent.name}</span>
+                            </div>
+                            {parent.children?.map((child) => (
+                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
                                 <Checkbox
-                                  checked={parent.children.every((child) => row.entityType.includes(child.value))}
+                                  checked={row.entityType.includes(child.value)}
                                   onCheckedChange={(checked) => {
                                     const isChecked = checked === true;
-                                    handleEntityTypeChange(
-                                      rowIndex,
-                                      isChecked
-                                        ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                        : row.entityType.filter((type) => !parent.children.some((child) => child.value === type))
-                                    );
+                                    const updatedEntityTypes = isChecked
+                                      ? [...row.entityType, child.value]
+                                      : row.entityType.filter((type) => type !== child.value);
+                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
                                   }}
                                   className="mr-2"
                                 />
-                                <span className="font-medium">{parent.name}</span>
+                                <span>{child.name}</span>
                               </div>
-                              {parent.children.map((child) => (
-                                <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
-                                  <Checkbox
-                                    checked={row.entityType.includes(child.value)}
-                                    onCheckedChange={(checked) => {
-                                      const isChecked = checked === true;
-                                      const updatedEntityTypes = isChecked
-                                        ? [...row.entityType, child.value]
-                                        : row.entityType.filter((type) => type !== child.value);
-                                      handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                    }}
-                                    className="mr-2"
-                                  />
-                                  <span>{child.name}</span>
-                                </div>
-                              ))}
-                            </React.Fragment>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            ))}
+                          </React.Fragment>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     </td>
                     <td className="p-2">
                       <Select
