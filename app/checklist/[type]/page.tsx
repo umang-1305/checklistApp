@@ -423,7 +423,7 @@ export default function Checklist({ params }: ChecklistProps) {
   }, [type, taskRows, mainActorRows, columns]);
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-8 text-lg">
       <div className="flex justify-between items-center">
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -462,8 +462,11 @@ export default function Checklist({ params }: ChecklistProps) {
                 className="bg-muted"
               />
               <Select
-                value={row.mainActor}
-                onValueChange={(value) => handleMainActorChange(index, "mainActor", value)}
+                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.team}
+                onValueChange={(value) =>
+                  handleMainActorChange(index, "team", value)
+                }
+                disabled={row.mainActor.toLowerCase() === "realtime"}
               >
                 <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select Actor" />
@@ -477,8 +480,11 @@ export default function Checklist({ params }: ChecklistProps) {
                 </SelectContent>
               </Select>
               <Select
-                value={row.team}
-                onValueChange={(value) => handleMainActorChange(index, "team", value)}
+                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.team}
+                onValueChange={(value) =>
+                  handleMainActorChange(index, "team", value)
+                }
+                disabled={row.mainActor.toLowerCase() === "realtime"}
               >
                 <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select the team" />
@@ -519,15 +525,15 @@ export default function Checklist({ params }: ChecklistProps) {
                 </div>
             </div>
           ))}
-        </div>
-        <Button
+          <Button
           variant="ghost"
-          className="flex items-center gap-2 text-base p-6 text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]"
+          className="flex items-center gap-2 text-base p-6 text-[#4285F4] hover:text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]/60 mt-5"
           onClick={handleAddMainActorRow}
         >
           <span className="mr-2">+</span>
           Add Row
         </Button>
+        </div>
         <div className="flex justify-end">
           <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] " size="lg">
             Save
@@ -746,6 +752,24 @@ export default function Checklist({ params }: ChecklistProps) {
                 onChange={(e) => setNewColumnName(e.target.value)}
                 className="focus:border-[#4285F4] transition-colors duration-200"
               />
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  {newColumnOptions.map((option, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
+                      <span>{option}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
+                        className="text-red-500 hover:bg-red-100 transition-colors duration-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+        
               <Button 
                 onClick={addCustomColumn}
                 className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6] transition-colors duration-200"
