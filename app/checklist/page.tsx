@@ -7,7 +7,7 @@ import { Input } from "@/app/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog"
 import { Info, ChevronDown, ChevronRight } from 'lucide-react'
-import { FieldTypeDialog } from '../../components/field-type-dialog'
+import { FieldTypeDialog } from '../components/field-type-dialog'
 
 interface MainActorRow {
   actions: string;
@@ -437,6 +437,7 @@ export default function Checklist({ type }: ChecklistProps) {
                     <td key={column.name} className="p-2">
                       <div className="flex flex-col space-y-2">
                         {renderCellInput(row, rowIndex, column)}
+                        
                         <Button
                           variant="outline"
                           size="sm"
@@ -526,7 +527,8 @@ export default function Checklist({ type }: ChecklistProps) {
 
 function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
   const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-
+  console.log(cellConfig.type)
+  if(!cellConfig.type) return null;
   switch (cellConfig.type) {
     case 'text':
       return (

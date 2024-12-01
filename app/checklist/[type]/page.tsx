@@ -129,7 +129,7 @@ export default function Checklist({ params }: ChecklistProps) {
   const [newOptionInput, setNewOptionInput] = useState('');
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [newColumnFieldType, setNewColumnFieldType] = useState<string>('text');
+  const [newColumnFieldType, setNewColumnFieldType] = useState<string>('');
   const [newColumnFieldOptions, setNewColumnFieldOptions] = useState<string[]>([]);
 
   const [actorData, setActorData] = useState<ActorData[]>([]);
@@ -252,7 +252,7 @@ export default function Checklist({ params }: ChecklistProps) {
       const newColumn: Column = { 
         name: newColumnName, 
         visible: true, 
-        type: 'text'  // Default to text type
+        type: newColumnType
       };
       setColumns([...columns, newColumn]);
       setTaskRows(taskRows.map(row => ({ 
@@ -260,7 +260,7 @@ export default function Checklist({ params }: ChecklistProps) {
         [newColumnName]: '',
         cellConfigs: {
           ...row.cellConfigs,
-          [newColumnName]: { type: 'text' }
+          [newColumnName]: { type: '' }
         }
       })));
       setNewColumnName('');
@@ -766,7 +766,9 @@ export default function Checklist({ params }: ChecklistProps) {
 
 function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void, openFieldTypeDialog: (rowIndex: number, columnName: string) => void) {
   const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-  
+  if(cellConfig.type === 'blank') {
+    return null;
+  }
   const inputElement = (() => {
     switch (cellConfig.type) {
       case 'text':
@@ -820,6 +822,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
   return (
     <div className="flex flex-col space-y-2">
       {inputElement}
+      {!cellConfig.type &&
       <Button
         variant="outline"
         size="sm"
@@ -828,6 +831,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
       >
         Set Field Type
       </Button>
+}
     </div>
   );
 }
