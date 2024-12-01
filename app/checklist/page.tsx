@@ -7,6 +7,7 @@ import { Input } from "@/app/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/app/components/ui/dialog"
 import { Info, ChevronDown, ChevronRight } from 'lucide-react'
+import { FieldTypeDialog } from '../components/field-type-dialog'
 
 interface MainActorRow {
   actions: string;
@@ -21,6 +22,11 @@ interface EntityType {
   children?: EntityType[];
 }
 
+interface CellConfig {
+  type: string;
+  options?: string[];
+}
+
 interface TaskRow {
   id: string;
   taskNumber: string;
@@ -29,7 +35,8 @@ interface TaskRow {
   remark: boolean;
   entityType: string[];
   route: string;
-  [key: string]: any; // For custom columns
+  [key: string]: any; 
+  cellConfigs?: { [key: string]: CellConfig };
 }
 
 interface Column {
@@ -39,7 +46,11 @@ interface Column {
   options?: string[];
 }
 
-export default function Checklist() {
+interface ChecklistProps {
+  type?: string;
+}
+
+export default function Checklist({ type }: ChecklistProps) {
   const [mainActorRows, setMainActorRows] = useState<MainActorRow[]>([{
     actions: '',
     mainActor: '',
@@ -71,6 +82,9 @@ export default function Checklist() {
   const [newColumnType, setNewColumnType] = useState('text');
   const [newColumnOptions, setNewColumnOptions] = useState<string[]>([]);
   const [newOptionInput, setNewOptionInput] = useState('');
+  const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<string>('');
+  const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnName: string } | null>(null);
 
   const entityTypes: EntityType[] = [
     {
@@ -152,24 +166,43 @@ export default function Checklist() {
       setNewColumnType('text');
       setNewColumnOptions([]);
       setNewOptionInput('');
-      // Add the new column to all existing task rows
       setTaskRows(taskRows.map(row => ({ ...row, [newColumnName]: newColumnType === 'checkbox' ? false : '' })));
     }
   };
 
-  const addOption = () => {
-    if (newOptionInput && !newColumnOptions.includes(newOptionInput)) {
-      setNewColumnOptions([...newColumnOptions, newOptionInput]);
-      setNewOptionInput('');
+  // const addOption = () => {
+  //   if (newOptionInput && !newColumnOptions.includes(newOptionInput)) {
+  //     setNewColumnOptions([...newColumnOptions, newOptionInput]);
+  //     setNewOptionInput('');
+  //   }
+  // };
+
+  const openFieldTypeDialog = (rowIndex: number, columnName: string) => {
+    setEditingCell({ rowIndex, columnName });
+    setIsFieldTypeDialogOpen(true);
+  };
+
+  const handleCellConfigSave = (config: CellConfig) => {
+    if (editingCell) {
+      const { rowIndex, columnName } = editingCell;
+      const newRows = [...taskRows];
+      if (!newRows[rowIndex].cellConfigs) {
+        newRows[rowIndex].cellConfigs = {};
+      }
+      newRows[rowIndex].cellConfigs[columnName] = config;
+      setTaskRows(newRows);
     }
+    setIsFieldTypeDialogOpen(false);
   };
 
   return (
     <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Checklist & Sign</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold">
+          {type ? `${type.charAt(0).toUpperCase()}${type.slice(1)} Checklist` : 'Checklist'}
+        </h1>
         <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-full">
-          Publish changes
+          Publish change
         </Button>
       </div>
 
@@ -197,6 +230,7 @@ export default function Checklist() {
                 <SelectValue placeholder="Select actor" />
               </SelectTrigger>
               <SelectContent  className='bg-white'>
+                <SelectItem value="realtime">Check on Realtime</SelectItem>
                 <SelectItem value="john">John</SelectItem>
                 <SelectItem value="david">David</SelectItem>
                 <SelectItem value="joe">Joe</SelectItem>
@@ -267,9 +301,11 @@ export default function Checklist() {
               <tr>
                 {columns.filter(col => col.visible).map((column) => (
                   <th key={column.name} className="bg-[#EAF2FF] p-3 text-left text-[#4285F4] font-medium">
-                    <div className="flex items-center gap-2">
-                      {column.name}
-                      <Info className="h-4 w-4" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {column.name}
+                        <Info className="h-4 w-4" />
+                      </div>
                     </div>
                   </th>
                 ))}
@@ -312,73 +348,77 @@ export default function Checklist() {
                   </td>
                   <td className="p-2">
                     <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white">
-                        <Checkbox
-                          checked={row.remark}
-                              onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
+                      <Checkbox
+                        checked={row.remark}
+                        onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
+                        className="mr-2"
+                      />
+                      <span className="text-sm text-gray-600">Show remark</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <Select
+                      value={row.entityType}
+                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
+                      multiple
+                    >
+                      <SelectTrigger className="bg-white border border-gray-300">
+                        <SelectValue placeholder="Select entity type/objects" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border border-gray-300 rounded mt-2">
+                        {entityTypes.map((parent) => {
+                          const allChildrenSelected = parent.children.every((child) => row.entityType.includes(child.value));
+                          return (
+                            <React.Fragment key={parent.value}>
+                              <div className="flex items-center px-2 py-1">
+                                <input
+                                  type="checkbox"
+                                  checked={allChildrenSelected}
+                                  onChange={(e) => {
+                                    const isChecked = e.target.checked;
+                                    handleEntityTypeChange(
+                                      rowIndex,
+                                      isChecked
+                                        ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
+                                        : row.entityType.filter(
+                                            (type) => type !== parent.value && !parent.children.some((child) => child.value === type)
+                                          )
+                                    );
+                                  }}
                                   className="mr-2"
+                                />
+                                <span className="font-medium">{parent.name}</span>
+                              </div>
+                              {parent.children?.map((child) => (
+                                <div key={child.value} className="flex items-center pl-6 px-2 py-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.entityType.includes(child.value)}
+                                    onChange={(e) => {
+                                      const isChecked = e.target.checked;
+                                      const updatedEntityTypes = isChecked
+                                        ? [...row.entityType, child.value]
+                                        : row.entityType.filter((type) => type !== child.value);
+                                      
+                                      if (updatedEntityTypes.filter((type) => parent.children.some((child) => child.value === type)).length === parent.children.length) {
+                                        updatedEntityTypes.push(parent.value);
+                                      } else {
+                                        updatedEntityTypes.splice(updatedEntityTypes.indexOf(parent.value), 1);
+                                      }
+
+                                      handleEntityTypeChange(rowIndex, updatedEntityTypes);
+                                    }}
+                                    className="mr-2"
                                   />
-                            <span className="text-sm text-gray-600">Show remark</span>
-                          </div>
-                        </td>
-
-                        <td className="p-2">
-                        
-  <Select
-    value={row.entityType}
-    onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-    multiple
-  >
-    <SelectTrigger className="bg-white border border-gray-300">
-      <SelectValue placeholder="Select entity type/objects" />
-    </SelectTrigger>
-    <SelectContent className="bg-white border border-gray-300 rounded">
-      {entityTypes.map((parent) => (
-        <React.Fragment key={parent.value}>
-          {/* Parent Checkbox */}
-          <div className="flex items-center px-2 py-1">
-            <input
-              type="checkbox"
-              checked={row.entityType.includes(parent.value)}
-              onChange={(e) => {
-                const isChecked = e.target.checked;
-                handleEntityTypeChange(
-                  rowIndex,
-                  isChecked
-                    ? [...row.entityType, parent.value, ...parent.children.map((child) => child.value)]
-                    : row.entityType.filter((type) => type !== parent.value && !parent.children.some((child) => child.value === type))
-                );
-              }}
-              className="mr-2"
-            />
-            <span className="font-medium">{parent.name}</span>
-          </div>
-          {/* Child Checkboxes */}
-          {parent.children?.map((child) => (
-            <div key={child.value} className="flex items-center pl-6 px-2 py-1">
-              <input
-                type="checkbox"
-                checked={row.entityType.includes(child.value)}
-                onChange={(e) => {
-                  const isChecked = e.target.checked;
-                  handleEntityTypeChange(
-                    rowIndex,
-                    isChecked
-                      ? [...row.entityType, child.value]
-                      : row.entityType.filter((type) => type !== child.value)
-                  );
-                }}
-                className="mr-2"
-              />
-              <span>{child.name}</span>
-            </div>
-          ))}
-        </React.Fragment>
-      ))}
-    </SelectContent>
-  </Select>
-</td>
-
-
+                                  <span>{child.name}</span>
+                                </div>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   <td className="p-2">
                     <Select
                       value={row.route}
@@ -395,45 +435,18 @@ export default function Checklist() {
                   </td>
                   {columns.filter(col => col.visible && col.type).map((column) => (
                     <td key={column.name} className="p-2">
-                      {column.type === 'text' && (
-                        <Input
-                          value={row[column.name] || ''}
-                          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-                          className="bg-gray-50"
-                        />
-                      )}
-                      {column.type === 'number' && (
-                        <Input
-                          type="number"
-                          value={row[column.name] || ''}
-                          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-                          className="bg-gray-50"
-                        />
-                      )}
-                      {column.type === 'checkbox' && (
-                        <Checkbox
-                          checked={row[column.name] || false}
-                          onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
-                          className="border-2 border-gray-300 rounded-sm"
-                        />
-                      )}
-                      {column.type === 'select' && column.options && (
-                        <Select
-                          value={row[column.name] || ''}
-                          onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
+                      <div className="flex flex-col space-y-2">
+                        {renderCellInput(row, rowIndex, column)}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+                          onClick={() => openFieldTypeDialog(rowIndex, column.name)}
                         >
-                          <SelectTrigger className="bg-white border border-gray-300">
-                            <SelectValue placeholder={`Select ${column.name}`} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {column.options.map((option, optionIndex) => (
-                              <SelectItem key={optionIndex} value={option}>
-                                {option}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                          Set Field Type
+                        </Button>
+                      </div>
                     </td>
                   ))}
                 </tr>
@@ -477,49 +490,92 @@ export default function Checklist() {
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
               />
-              <Select value={newColumnType} onValueChange={setNewColumnType}>
-                <SelectTrigger className="bg-white border border-gray-300">
-                  <SelectValue placeholder="Select column type" />
-                </SelectTrigger>
-                <SelectContent className='bg-white'>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="number">Number</SelectItem>
-                  <SelectItem value="checkbox">Checkbox</SelectItem>
-                  <SelectItem value="select">Select</SelectItem>
-                </SelectContent>
-              </Select>
-              {newColumnType === 'select' && (
-                <div className="space-y-2">
-                  <div className="flex space-x-2">
-                    <Input
-                      placeholder="Add option"
-                      value={newOptionInput}
-                      onChange={(e) => setNewOptionInput(e.target.value)}
-                    />
-                    <Button onClick={addOption}>Add</Button>
-                  </div>
-                  <div className="space-y-1">
-                    {newColumnOptions.map((option, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                        <span>{option}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <div className="flex space-x-2">
                 </div>
-              )}
+                <div className="space-y-1">
+                  {newColumnOptions.map((option, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
+                      <span>{option}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+        
               <Button onClick={addCustomColumn}>Add Custom Column</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+      <FieldTypeDialog
+        open={isFieldTypeDialogOpen}
+        onOpenChange={setIsFieldTypeDialogOpen}
+        columnName={editingCell?.columnName || ''}
+        onSave={handleCellConfigSave}
+        initialConfig={editingCell ? taskRows[editingCell.rowIndex].cellConfigs?.[editingCell.columnName] : undefined}
+      />
     </div>
   )
+}
+
+function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
+  const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
+  console.log(cellConfig.type)
+  if(!cellConfig.type) return null;
+  switch (cellConfig.type) {
+    case 'text':
+      return (
+        <Input
+          value={row[column.name] || ''}
+          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          className="bg-gray-50"
+        />
+      );
+    case 'number':
+      return (
+        <Input
+          type="number"
+          value={row[column.name] || ''}
+          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          className="bg-gray-50"
+        />
+      );
+    case 'checkbox':
+      return (
+        <Checkbox
+          checked={row[column.name] || false}
+          onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
+          className="border-2 border-gray-300 rounded-sm"
+        />
+      );
+    case 'select':
+    case 'multi-select':
+      return (
+        <Select
+          value={row[column.name] || ''}
+          onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
+        >
+          <SelectTrigger className="bg-white border border-gray-300">
+            <SelectValue placeholder={`Select ${column.name}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {cellConfig.options?.map((option, optionIndex) => (
+              <SelectItem key={optionIndex} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    default:
+      return null;
+  }
 }
 
