@@ -491,6 +491,7 @@ export default function Checklist({ params }: ChecklistProps) {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex flex-row gap-x-3">
               <Select
                 value={row.designation}
                 onValueChange={(value) => handleMainActorChange(index, "designation", value)}
@@ -499,7 +500,7 @@ export default function Checklist({ params }: ChecklistProps) {
                   <SelectValue placeholder="Select the Designation" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from(new Set(actorData.map(actor => actor.designation))).map((designation) => (
+                   {Array.from(new Set(actorData.map(actor => actor.designation))).map((designation) => (
                     <SelectItem key={designation} value={designation}>
                       {designation}
                     </SelectItem>
@@ -512,9 +513,10 @@ export default function Checklist({ params }: ChecklistProps) {
                   size="icon"
                   className="p-1"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                   <span className="sr-only">Delete row</span>
                 </Button>
+                </div>
             </div>
           ))}
         </div>
@@ -608,13 +610,15 @@ export default function Checklist({ params }: ChecklistProps) {
                           <SelectValue placeholder="Select action" />
                         </SelectTrigger>
                         <SelectContent className='bg-white'>
-                          {mainActorRows.map((mainRow, index) => (
-                            mainRow.actions && (
-                              <SelectItem key={index} value={mainRow.actions}>
-                                {mainRow.actions}
-                              </SelectItem>
-                            )
-                          ))}
+                          {mainActorRows
+                            .filter(mainRow => mainRow.designation.toLowerCase() !== 'supervisor')
+                            .map((mainRow, index) => (
+                              mainRow.actions && (
+                                <SelectItem key={index} value={mainRow.actions}>
+                                  {mainRow.actions}
+                                </SelectItem>
+                              )
+                            ))}
                         </SelectContent>
                       </Select>
                     </td>
