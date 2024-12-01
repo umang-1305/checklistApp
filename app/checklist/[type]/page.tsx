@@ -424,7 +424,7 @@ export default function Checklist({ params }: ChecklistProps) {
   }, [type, taskRows, mainActorRows, columns]);
 
   return (
-    <div className="p-6 space-y-8 text-lg">
+    <div className="p-6 space-y-3 text-lg font-poppins">
       <div className="flex justify-between items-center">
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -460,13 +460,13 @@ export default function Checklist({ params }: ChecklistProps) {
                 onChange={(e) =>
                   handleMainActorChange(index, "actions", e.target.value)
                 }
-                className="bg-muted"
+                className="bg-gray-50 text-gray-500 text-base"
               />
               <Select
                 value={row.mainActor}
                 onValueChange={(value) => handleMainActorChange(index, "mainActor", value)}
               >
-                <SelectTrigger className="bg-background border border-input">
+                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                   <SelectValue placeholder="Select Actor" />
                 </SelectTrigger>
                 <SelectContent>
@@ -487,7 +487,7 @@ export default function Checklist({ params }: ChecklistProps) {
                 }
                 disabled={row.mainActor.toLowerCase() === "realtime"}
               >
-                <SelectTrigger className="bg-background border border-input">
+                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                   <SelectValue placeholder="Select the team" />
                 </SelectTrigger>
                 <SelectContent>
@@ -504,7 +504,7 @@ export default function Checklist({ params }: ChecklistProps) {
                 onValueChange={(value) => handleMainActorChange(index, "designation", value)}
                  disabled={row.mainActor.toLowerCase() === "realtime"}
               >
-                <SelectTrigger className="bg-background border border-input">
+                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                   <SelectValue placeholder="Select the Designation" />
                 </SelectTrigger>
                 <SelectContent>
@@ -519,9 +519,9 @@ export default function Checklist({ params }: ChecklistProps) {
                   onClick={() => handleDelete()}
                   variant="outline"
                   size="icon"
-                  className="p-1"
+                  className="p-2"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 className="h-6 w-6" />
                   <span className="sr-only">Delete row</span>
                 </Button>
                 </div>
@@ -537,7 +537,7 @@ export default function Checklist({ params }: ChecklistProps) {
         </Button>
         </div>
         <div className="flex justify-end">
-          <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] " size="lg">
+          <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] text-lg rounded-xl" size="lg">
             Save
           </Button>
         </div>
@@ -548,16 +548,16 @@ export default function Checklist({ params }: ChecklistProps) {
       <div className="space-y-6">
         <div className="flex justify-between items-start text-sm">
           <div className="">
-             <p className="text-gray-600 mb-1 text-md">
+             <p className="text-gray-500 mb-1 text-lg">
               The below columns are <span className="font-bold text-black">designed for you</span> to <span className="font-bold text-black">decide what aspects you want your team to include</span> while carrying out their work.
             </p>
-            <p className="text-gray-600 mb-1 text-md">
+            <p className="text-gray-500 mb-1 text-lg">
               <span className="font-bold text-black">Unattended Column</span> means that it will not be shown in the application.
             </p>
           </div>
           <Button 
             variant="outline" 
-            className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200"
+            className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200 text-lg font-light"
             onClick={() => setIsColumnDialogOpen(true)}
             size="lg"
           >
@@ -565,24 +565,26 @@ export default function Checklist({ params }: ChecklistProps) {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto border p-3 rounded-xl">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-[#EAF2FF] text-[#4285F4]">
+              <tr className="">
                 {columns.filter(col => col.visible).map((column) => (
-                  <th key={column.name} className="p-3 text-left font-medium">
-                    <div className="flex items-center gap-2">
+                  <th key={column.name} className={`p-3 text-left font-medium ${column.name === 'Task Number' ? 'w-44' : ''}`}>
+                    <div className={`flex items-center justify-between gap-3 bg-[#EAF2FF] text-[#4285F4] p-3 rounded-2xl ${column.name === 'Task Number' ? '' : 'w-full'}`}>
                       {column.name}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-4 w-4 cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{`Information about ${column.name}`}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      {column.name !== 'Task Number' && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 " />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{`Information about ${column.name}`}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
                   </th>
                 ))}
@@ -606,7 +608,7 @@ export default function Checklist({ params }: ChecklistProps) {
                         placeholder="Enter Task name"
                         value={row.taskName}
                         onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
-                        className="bg-gray-50 focus:bg-white transition-colors duration-200"
+                        className="bg-gray-50 text-gray-500 text-base"
                       />
                     </td>
                     <td className="p-2">
@@ -614,7 +616,7 @@ export default function Checklist({ params }: ChecklistProps) {
                         value={row.actions}
                         onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
                       >
-                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                        <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                           <SelectValue placeholder="Select action" />
                         </SelectTrigger>
                         <SelectContent className='bg-white'>
@@ -645,8 +647,8 @@ export default function Checklist({ params }: ChecklistProps) {
                       value={row.entityType.join(',')}
                       onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
                     >
-                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
-                        <SelectValue>
+                      <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+                        <SelectValue placeholder="Select entity type/object">
                           <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
                         </SelectValue>
                       </SelectTrigger>
@@ -695,7 +697,7 @@ export default function Checklist({ params }: ChecklistProps) {
                         value={row.route}
                         onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
                       >
-                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                        <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                           <SelectValue placeholder="Select route" />
                         </SelectTrigger>
                         <SelectContent className='bg-white'>
@@ -728,43 +730,56 @@ export default function Checklist({ params }: ChecklistProps) {
         </Button>
       </div>
 
-      <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
-        <DialogContent className="bg-white shadow-lg rounded-lg">
-          <DialogHeader>
-            <DialogTitle>Configure Columns</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {columns.map((column, index) => (
-              <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-100 rounded transition-colors duration-200">
-                <span>{column.name}</span>
-                <Switch
-                  checked={column.visible}
-                  onCheckedChange={(checked) => {
-                    const newColumns = [...columns];
-                    newColumns[index] = { ...column, visible: checked };
-                    setColumns(newColumns);
-                  }}
-                />
-              </div>
-            ))}
-            <Separator />
-            <div className="space-y-2">
+    <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
+      <DialogContent className="max-w-md p-0 gap-0">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-medium">Configure Columns</h2>
+        </div>
+        
+        <div className="p-4 space-y-4">
+          {columns.map((column, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <Info className="w-4 h-4 text-gray-400" />
+              <span className="flex-grow text-base">{column.name}</span>
+              <Checkbox
+                checked={column.visible}
+                onCheckedChange={(checked) => {
+                  const newColumns = [...columns]
+                  newColumns[index] = { ...column, visible: checked as boolean }
+                  setColumns(newColumns)
+                }}
+                className="rounded-sm data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+              />
+            </div>
+          ))}
+          <div className="pt-2">
               <Input
                 placeholder="New column name"
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
-                className="focus:border-[#4285F4] transition-colors duration-200"
+                className="focus:border-[#4285F4] transition-colors duration-200 text-base "
               />
-              <Button 
-                onClick={addCustomColumn}
-                className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6] transition-colors duration-200"
-              >
-                Add Custom Column
-              </Button>
-            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="flex items-center gap-2">
+            <Button 
+              className="bg-blue-500 hover:bg-blue-600 text-white ml-auto"
+            >
+              Add Custom Column
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+          <Button 
+            variant="ghost" 
+            onClick={() => setIsColumnDialogOpen(false)}
+            className="text-gray-500 hover:text-gray-600 hover:bg-gray-100"
+          >
+            Discard
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
       <FieldTypeDialog
         open={isFieldTypeDialogOpen}
         onOpenChange={setIsFieldTypeDialogOpen}
@@ -789,7 +804,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
           <Input 
             value={row[column.name] || ''}
             onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-            className="bg-gray-50"
+            className="bg-gray-100 text-gray-500 text-lg"
           />
         );
       case 'number':
@@ -815,7 +830,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
             value={row[column.name] || ''}
             onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
           >
-            <SelectTrigger className="bg-white border border-gray-300">
+            <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
               <SelectValue placeholder={`Select ${column.name}`} />
             </SelectTrigger>
             <SelectContent>
