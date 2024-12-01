@@ -763,6 +763,7 @@ export default function Checklist({ params }: ChecklistProps) {
           <div className="flex items-center gap-2">
             <Button 
               className="bg-blue-500 hover:bg-blue-600 text-white ml-auto"
+              onClick={addCustomColumn}
             >
               Add Custom Column
             </Button>
