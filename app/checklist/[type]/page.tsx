@@ -304,6 +304,19 @@ export default function Checklist({ params }: ChecklistProps) {
 
     const step = stepMapping[type as keyof typeof stepMapping] || 'step3';
 
+    const actors = mainActorRows.reduce((acc, actor, index) => {
+      if (actor.actions && actor.mainActor) {
+        acc[`actor${index + 1}`] = {
+          action: actor.actions,
+          date: new Date().toUTCString(),
+          designation: actor.designation,
+          name: actor.mainActor,
+          team: actor.team
+        };
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
     const tasks = taskRows.reduce((acc, task, index) => {
       const taskKey = `task${index + 1}`;
       const actions = mainActorRows.reduce((actionsAcc, actor, actorIndex) => {
@@ -318,58 +331,67 @@ export default function Checklist({ params }: ChecklistProps) {
         return actionsAcc;
       }, {} as Record<string, any>);
 
-      // Only add the task if it has a name, at least one action, and an entity type
-      if (task.taskName && Object.keys(actions).length > 0 && task.entityType.length > 0) {
-        acc[taskKey] = {
-          actions,
+      const entityObjects = task.entityType.reduce((entityAcc, entity, entityIndex) => {
+        entityAcc[`EO${entityIndex + 1}`] = {
           customInput: {
-            input: false,
-            inputText: "",
-            name: task.taskName
+            input: true,
+            inputText: ""
           },
-          entityObject: task.entityType.map(entity => ({
-            id: entity,
-            name: entity
-          })),
-          entityType: [task.entityType[0]],
-          remark: {
-            input: task.remark,
-            remarkText: "",
-            showRemark: task.remark
-          },
-          route: task.route || "",
-          taskLabel: task.taskName
+          entityType: entity
         };
+        return entityAcc;
+      }, {} as Record<string, any>);
 
-        // Add custom columns
-        columns.forEach(column => {
-          if (column.type && column.type !== 'checkbox' && task[column.name]) {
-            acc[taskKey].customInput[column.name] = task[column.name];
+      acc[taskKey] = {
+        actions,
+        entityObjects,
+        remark: {
+          input: task.remark,
+          remarkText: "",
+          showRemark: task.remark
+        },
+        route: task.route || "",
+        taskLabel: task.taskName
+      };
+
+      // Add custom columns
+      columns.forEach(column => {
+        if (column.type && column.type !== 'checkbox' && task[column.name]) {
+          if (!acc[taskKey].entityObjects.EO1.customInput) {
+            acc[taskKey].entityObjects.EO1.customInput = {};
           }
-        });
-      }
+          acc[taskKey].entityObjects.EO1.customInput[column.name] = {
+            input: true,
+            inputText: task[column.name]
+          };
+        }
+      });
 
       return acc;
     }, {} as Record<string, any>);
+
+    const payload = {
+      [step]: {
+        actors,
+        entities: {}, // You may need to populate this based on your requirements
+        name: `${type} Checklist`,
+        stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
+        tasks
+      }
+    };
 
     // Check if tasks object is empty
     if (Object.keys(tasks).length === 0) {
       toast({
         title: "Error publishing changes",
-        description: "Please add at least one valid task with a name, an action, and an entity type before publishing.",
+        description: "Please add at least one valid task before publishing.",
         variant: "destructive",
       });
       return;
     }
 
-    const payload = {
-      [step]: {
-        tasks
-      }
-    };
-
     try {
-      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow9', {
+      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow11', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
