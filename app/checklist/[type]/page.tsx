@@ -701,8 +701,8 @@ export default function Checklist({ params }: ChecklistProps) {
                           <SelectValue placeholder="Select route" />
                         </SelectTrigger>
                         <SelectContent className='bg-white'>
-                          <SelectItem value="image_verification">Image Verification</SelectItem>
-                          <SelectItem value="document_scan">Document Scan</SelectItem>
+                          <SelectItem value="/image">Image Verification</SelectItem>
+                          <SelectItem value="/invoice">Document Scan</SelectItem>
                         </SelectContent>
                       </Select>
                     </td>
