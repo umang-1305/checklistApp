@@ -129,6 +129,8 @@ export default function Checklist({ params }: ChecklistProps) {
   const [newOptionInput, setNewOptionInput] = useState('');
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [newColumnFieldType, setNewColumnFieldType] = useState<string>('text');
+  const [newColumnFieldOptions, setNewColumnFieldOptions] = useState<string[]>([]);
 
   const [actorData, setActorData] = useState<ActorData[]>([]);
   const [entityData, setEntityData] = useState<EntityData>({});
@@ -250,17 +252,18 @@ export default function Checklist({ params }: ChecklistProps) {
       const newColumn: Column = { 
         name: newColumnName, 
         visible: true, 
-        type: newColumnType 
+        type: 'text'  // Default to text type
       };
-      if (newColumnType === 'select') {
-        newColumn.options = newColumnOptions;
-      }
       setColumns([...columns, newColumn]);
+      setTaskRows(taskRows.map(row => ({ 
+        ...row, 
+        [newColumnName]: '',
+        cellConfigs: {
+          ...row.cellConfigs,
+          [newColumnName]: { type: 'text' }
+        }
+      })));
       setNewColumnName('');
-      setNewColumnType('blank');
-      setNewColumnOptions([]);
-      setNewOptionInput('');
-      setTaskRows(taskRows.map(row => ({ ...row, [newColumnName]: newColumnType === 'checkbox' ? false : '' })));
     }
   };
 
@@ -391,7 +394,7 @@ export default function Checklist({ params }: ChecklistProps) {
     }
 
     try {
-      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow11', {
+      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow9', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -576,122 +579,128 @@ export default function Checklist({ params }: ChecklistProps) {
               </tr>
             </thead>
             <tbody>
-              {taskRows.map((row, rowIndex) => (
-                <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
-                  <td className="p-2">
-                    <div className="bg-[#EAF2FF] p-2 rounded text-[#4285F4] font-medium w-16 text-center w-full">
-                      {row.taskNumber}
-                    </div>
-                  </td>
-                  <td className="p-2">
-                    <Input
-                      placeholder="Enter Task name"
-                      value={row.taskName}
-                      onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
-                      className="bg-gray-50 focus:bg-white transition-colors duration-200"
-                    />
-                  </td>
-                  <td className="p-2">
-                    <Select
-                      value={row.actions}
-                      onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
-                    >
-                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
-                        <SelectValue placeholder="Select action" />
-                      </SelectTrigger>
-                      <SelectContent className='bg-white'>
-                        {mainActorRows.map((mainRow, index) => (
-                          mainRow.actions && (
-                            <SelectItem key={index} value={mainRow.actions}>
-                              {mainRow.actions}
-                            </SelectItem>
-                          )
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="p-2">
-                    <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white hover:bg-gray-50 transition-colors duration-200">
-                      <Checkbox
-                        checked={row.remark}
-                        onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
-                        className="mr-2"
+              {taskRows.map((row, rowIndex) => {
+                const associatedActor = mainActorRows.find(actor => actor.actions === row.actions);
+                if (associatedActor && associatedActor.designation.toLowerCase() === 'supervisor') {
+                  return null;
+                }
+                return (
+                  <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
+                    <td className="p-2">
+                      <div className="bg-[#EAF2FF] p-2 rounded text-[#4285F4] font-medium w-16 text-center w-full">
+                        {row.taskNumber}
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <Input
+                        placeholder="Enter Task name"
+                        value={row.taskName}
+                        onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
+                        className="bg-gray-50 focus:bg-white transition-colors duration-200"
                       />
-                      <span className="text-sm text-gray-600">Show remark</span>
-                    </div>
-                  </td>
-                  <td className="p-2">
-                    <Select
-                      value={row.entityType}
-                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                      multiple
-                    >
-                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
-                        <SelectValue placeholder="Select entity type/objects" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => (
-                          <React.Fragment key={parent.value}>
-                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
-                              <Checkbox
-                                checked={parent.children.every((child) => row.entityType.includes(child.value))}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleEntityTypeChange(
-                                    rowIndex,
-                                    isChecked
-                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                      : row.entityType.filter((type) => !parent.children.some((child) => child.value === type))
-                                  );
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="font-medium">{parent.name}</span>
-                            </div>
-                            {parent.children.map((child) => (
-                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
+                    </td>
+                    <td className="p-2">
+                      <Select
+                        value={row.actions}
+                        onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
+                      >
+                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                          <SelectValue placeholder="Select action" />
+                        </SelectTrigger>
+                        <SelectContent className='bg-white'>
+                          {mainActorRows.map((mainRow, index) => (
+                            mainRow.actions && (
+                              <SelectItem key={index} value={mainRow.actions}>
+                                {mainRow.actions}
+                              </SelectItem>
+                            )
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="p-2">
+                      <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white hover:bg-gray-50 transition-colors duration-200">
+                        <Checkbox
+                          checked={row.remark}
+                          onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
+                          className="mr-2"
+                        />
+                        <span className="text-sm text-gray-600">Show remark</span>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <Select
+                        value={row.entityType}
+                        onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
+                        multiple
+                      >
+                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                          <SelectValue placeholder="Select entity type/objects" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
+                          {entityTypes.map((parent) => (
+                            <React.Fragment key={parent.value}>
+                              <div className="flex items-center px-2 py-1 hover:bg-gray-100">
                                 <Checkbox
-                                  checked={row.entityType.includes(child.value)}
+                                  checked={parent.children.every((child) => row.entityType.includes(child.value))}
                                   onCheckedChange={(checked) => {
                                     const isChecked = checked === true;
-                                    const updatedEntityTypes = isChecked
-                                      ? [...row.entityType, child.value]
-                                      : row.entityType.filter((type) => type !== child.value);
-                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
+                                    handleEntityTypeChange(
+                                      rowIndex,
+                                      isChecked
+                                        ? [...row.entityType, ...parent.children.map((child) => child.value)]
+                                        : row.entityType.filter((type) => !parent.children.some((child) => child.value === type))
+                                    );
                                   }}
                                   className="mr-2"
                                 />
-                                <span>{child.name}</span>
+                                <span className="font-medium">{parent.name}</span>
                               </div>
-                            ))}
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="p-2">
-                    <Select
-                      value={row.route}
-                      onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
-                    >
-                      <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
-                        <SelectValue placeholder="Select route" />
-                      </SelectTrigger>
-                      <SelectContent className='bg-white'>
-                        <SelectItem value="image_verification">Image Verification</SelectItem>
-                        <SelectItem value="document_scan">Document Scan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  {columns.filter(col => col.visible && col.type).map((column) => (
-                    <td key={column.name} className="p-2">
-                      <div className="flex flex-col space-y-2">
-                        {renderCellInput(row, rowIndex, column, handleTaskChange)}
-                      </div>
+                              {parent.children.map((child) => (
+                                <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
+                                  <Checkbox
+                                    checked={row.entityType.includes(child.value)}
+                                    onCheckedChange={(checked) => {
+                                      const isChecked = checked === true;
+                                      const updatedEntityTypes = isChecked
+                                        ? [...row.entityType, child.value]
+                                        : row.entityType.filter((type) => type !== child.value);
+                                      handleEntityTypeChange(rowIndex, updatedEntityTypes);
+                                    }}
+                                    className="mr-2"
+                                  />
+                                  <span>{child.name}</span>
+                                </div>
+                              ))}
+                            </React.Fragment>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
-                  ))}
-                </tr>
-              ))}
+                    <td className="p-2">
+                      <Select
+                        value={row.route}
+                        onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
+                      >
+                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
+                          <SelectValue placeholder="Select route" />
+                        </SelectTrigger>
+                        <SelectContent className='bg-white'>
+                          <SelectItem value="image_verification">Image Verification</SelectItem>
+                          <SelectItem value="document_scan">Document Scan</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    {columns.filter(col => col.visible && col.type).map((column) => (
+                      <td key={column.name} className="p-2">
+                        <div className="flex flex-col space-y-2">
+                          {renderCellInput(row, rowIndex, column, handleTaskChange, openFieldTypeDialog)}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -733,24 +742,6 @@ export default function Checklist({ params }: ChecklistProps) {
                 onChange={(e) => setNewColumnName(e.target.value)}
                 className="focus:border-[#4285F4] transition-colors duration-200"
               />
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  {newColumnOptions.map((option, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-100 p-2 rounded">
-                      <span>{option}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setNewColumnOptions(newColumnOptions.filter((_, i) => i !== index))}
-                        className="text-red-500 hover:bg-red-100 transition-colors duration-200"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-        
               <Button 
                 onClick={addCustomColumn}
                 className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6] transition-colors duration-200"
@@ -773,7 +764,7 @@ export default function Checklist({ params }: ChecklistProps) {
   )
 }
 
-function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void) {
+function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void, openFieldTypeDialog: (rowIndex: number, columnName: string) => void) {
   const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
   
   const inputElement = (() => {
@@ -804,7 +795,6 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
           />
         );
       case 'select':
-      case 'multi-select':
         return (
           <Select
             value={row[column.name] || ''}
@@ -830,16 +820,14 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
   return (
     <div className="flex flex-col space-y-2">
       {inputElement}
-      {!cellConfig.type && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
-          onClick={() => openFieldTypeDialog(rowIndex, column.name)}
-        >
-          Set Field Type
-        </Button>
-      )}
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+        onClick={() => openFieldTypeDialog(rowIndex, column.name)}
+      >
+        Set Field Type
+      </Button>
     </div>
   );
 }
