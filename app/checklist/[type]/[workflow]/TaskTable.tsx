@@ -109,15 +109,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         </div>
 
         <div className="border p-3 rounded-xl">
-          <table className="w-full border-separate [border-spacing:0.75rem ">
+          <table className="w-full border-separate [border-spacing:0.75rem] ">
             <thead>
-              <tr className="gap-x-20">
+              <tr className="gap-x-10">
                 {columns
                   .filter((col) => col.visible)
                   .map((column) => (
                     <th
                       key={column.name}
-                      className="p-3 px-2  font-medium bg-[#EAF2FF] text-[#4285F4] rounded-lg"
+                      className="p-2 font-medium bg-[#EAF2FF] text-[#4285F4] rounded-lg "
                     >
                       <div className="flex items-center justify-between">
                         {column.name}
@@ -185,7 +185,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </td>
 
                   {/* Remark */}
-                  <td className="p-2">
+                  <td className="p-2 flex flex-row gap-x-2 items-center justify-center mt-4">
                     <Checkbox
                       checked={row.remark || false}
                       onCheckedChange={(checked) =>
@@ -193,6 +193,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       }
                       className="border border-gray-300 rounded-md"
                     />
+                    <p className="text-sm">Show remark</p>
                   </td>
 
                   {/* Entity Type */}
@@ -241,18 +242,17 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </td>
 
                   {/* Route */}
-                  <td className="p-2">
-  <select
-    value={row.route}
-    onChange={(e) => handleTaskChange(rowIndex, "route", e.target.value)}
-    className="w-full bg-gray-50 text-gray-500 rounded-md"
-  >
-    <option value="">Select Route</option>
-    <option value="/image">Image Verification</option>
-    <option value="/invoice">Document Scan</option>
-  </select>
-</td>
-
+                   <td className="p-2">
+                    <select
+                      value={row.route}
+                      onChange={(e) => handleTaskChange(rowIndex, "route", e.target.value)}
+                      className="w-full bg-gray-50 text-gray-500 rounded-md"
+                    >
+                      <option value="">Select Route</option>
+                      <option value="/image">Image Verification</option>
+                      <option value="/invoice">Document Scan</option>
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
