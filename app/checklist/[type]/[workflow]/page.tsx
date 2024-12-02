@@ -5,29 +5,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/app/components/ui/button';
-import { Checkbox } from '@/app/components/ui/checkbox';
-import { Input } from '@/app/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select';
-import { Dialog, DialogContent } from '@/app/components/ui/dialog';
-import { Info, Trash2 } from 'lucide-react';
+import { Dialog } from '@/app/components/ui/dialog';
 import { FieldTypeDialog } from '../../../components/field-type-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { toast } from '@/app/components/ui/use-toast';
+import { CellInput } from './CellInput';
+import { TaskTable } from './TaskTable';
+import { ConfigureColumnsDialog } from './ConfigureColumnsDialog';
+import { MainActorSection } from './MainActorSection';
 
 interface MainActorRow {
   actions: string;
@@ -55,11 +42,13 @@ interface TaskRow {
   taskName: string;
   actions: string;
   remark: boolean;
-  entityType: string[];
+  entityType: string[]; // Now represents only entity types
+  entityObject: string[]; // New field for entity objects
   route: string;
   [key: string]: any; // For custom columns
   cellConfigs?: { [key: string]: CellConfig };
 }
+
 
 interface EditingCell {
   rowIndex: number;
@@ -110,19 +99,20 @@ export default function Checklist() {
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
-  const [columns, setColumns] = useState<Column[]>([
-    { name: 'Task Number', visible: true },
-    { name: 'Task Name', visible: true },
-    { name: 'Actions', visible: true },
-    { name: 'Remark', visible: true },
-    { name: 'Entity Type/Objects', visible: true },
-    { name: 'Route', visible: true },
-  ]);
+// Update the initial columns state
+const [columns, setColumns] = useState<Column[]>([
+  { name: 'Task Number', visible: true },
+  { name: 'Task Name', visible: true },
+  { name: 'Actions', visible: true },
+  { name: 'Remark', visible: true },
+  { name: 'Entity Type', visible: true }, // Changed
+  { name: 'Entity Object', visible: true }, // New column
+  { name: 'Route', visible: true },
+]);
+
 
   const [newColumnName, setNewColumnName] = useState('');
   const [newColumnType, setNewColumnType] = useState('blank');
-  const [newColumnOptions, setNewColumnOptions] = useState<string[]>([]);
-  const [newOptionInput, setNewOptionInput] = useState('');
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
@@ -158,21 +148,34 @@ export default function Checklist() {
     const fetchEntityData = async () => {
       try {
         const response = await fetch(
-          'https://admin-backend-vj3t6ewmoa-uc.a.run.app/Entities'
+          `https://admin-backend-85801868683.us-central1.run.app/Workflows/${workflow}/entity/${step}`
         );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
+  
         const data = await response.json();
   
-        if (data.status === 'success' && data.data.entities?.equipment) {
-          // Extract and map `equipment` data
-          const equipmentData = data.data.entities.equipment;
-          const mappedEntityTypes = Object.keys(equipmentData).map((key) => ({
-            name: equipmentData[key].name,
-            value: key.toLowerCase() // Assuming you want keys like `RMG_1` as values
-          }));
-          setEntityData(mappedEntityTypes);
+        if (data.status === 'success' && data.data.entities) {
+          // Process the entities into a suitable format for `entityData`
+          const processedEntityData = Object.keys(data.data.entities).reduce(
+            (acc, entityTypeKey) => {
+              acc[entityTypeKey] = Object.entries(data.data.entities[entityTypeKey]).reduce(
+                (childAcc, [entityObjectKey, entityObjectValue]) => {
+                  childAcc[entityObjectKey] = {
+                    name: entityObjectValue.name,
+                    ID: entityObjectValue.ID,
+                  };
+                  return childAcc;
+                },
+                {}
+              );
+              return acc;
+            },
+            {}
+          );
+  
+          setEntityData(processedEntityData); // Update state correctly
         } else {
           console.error('Failed to fetch or parse entity data');
         }
@@ -182,9 +185,8 @@ export default function Checklist() {
     };
   
     fetchEntityData();
-  }, []);
-
-  // Fetching workflow data based on 'step' and 'workflow' parameters
+  }, [workflow, step]);
+      // Fetching workflow data based on 'step' and 'workflow' parameters
   useEffect(() => {
     if (type && workflow && step) {
       const fetchStepData = async () => {
@@ -213,38 +215,35 @@ export default function Checklist() {
     if (stepData) {
       // Update mainActorRows
       if (stepData.actors) {
-        const actorsArray = Object.values(stepData.actors).map(
-          (actor: any) => ({
-            actions: actor.action || '',
-            mainActor: actor.name || '',
-            team: actor.team || '',
-            designation: actor.designation || '',
-            id: actor.id || '',
-            person: actor.person || '',
-          })
-        );
+        const actorsArray = Object.values(stepData.actors).map((actor: any) => ({
+          actions: actor.action || '',
+          mainActor: actor.name || '',
+          team: actor.team || '',
+          designation: actor.designation || '',
+          id: actor.id || '',
+          person: actor.person || '',
+        }));
         setMainActorRows(actorsArray);
       }
-
+  
       // Update taskRows
       if (stepData.tasks) {
-        const tasksArray = Object.values(stepData.tasks).map(
-          (task: any, index: number) => ({
-            id: String(index + 1),
-            taskNumber: `${String(index + 1).padStart(2, '0')}.`,
-            taskName: task.taskLabel || '',
-            actions: '',
-            remark: task.remark?.input || false,
-            entityType: [],
-            route: task.route || '',
-            cellConfigs: {},
-          })
-        );
-
+        const tasksArray = Object.values(stepData.tasks).map((task: any, index: number) => ({
+          id: String(index + 1),
+          taskNumber: `${String(index + 1).padStart(2, '0')}.`,
+          taskName: task.taskLabel || '',
+          actions: '',
+          remark: task.remark?.input || false,
+          entityType: task.entityType || [], // Default to empty array
+          entityObject: task.entityObject || [], // Default to empty array
+          route: task.route || '',
+          cellConfigs: {},
+        }));
+  
         // Extract 'actions' and 'entityType' for each task
         tasksArray.forEach((taskRow, idx) => {
           const taskData = Object.values(stepData.tasks)[idx];
-
+  
           // Handle 'actions'
           if (taskData.actions) {
             const actionValues = Object.values(taskData.actions);
@@ -252,7 +251,7 @@ export default function Checklist() {
               taskRow.actions = actionValues[0].actionType || '';
             }
           }
-
+  
           // Handle 'entityType'
           if (taskData.entityObjects) {
             const entityTypes = Object.values(taskData.entityObjects).map(
@@ -260,14 +259,13 @@ export default function Checklist() {
             );
             taskRow.entityType = entityTypes;
           }
-
-          // Handle custom columns if needed
         });
-
+  
         setTaskRows(tasksArray);
       }
     }
   }, [stepData]);
+  
 
   // Processing entity types for use in select components
   const entityTypes: EntityType[] = useMemo(() => {
@@ -339,11 +337,13 @@ export default function Checklist() {
       taskName: '',
       actions: '',
       remark: false,
-      entityType: [],
+      entityType: [], // Always initialize
+      entityObject: [], // Always initialize
       route: '',
     };
     setTaskRows([...taskRows, newRow]);
   };
+    
 
   // Function to handle changes in the task rows
   const handleTaskChange = (
@@ -359,17 +359,23 @@ export default function Checklist() {
   };
 
   // Function to handle changes in entity types
-  const handleEntityTypeChange = (
-    rowIndex: number,
-    updatedEntityTypes: string[]
-  ) => {
+  const handleEntityTypeChange = (rowIndex: number, updatedEntityType: string) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
-      newRows[rowIndex].entityType = updatedEntityTypes;
+      newRows[rowIndex].entityType = [updatedEntityType]; // Single entity type for now
+      newRows[rowIndex].entityObject = []; // Clear entity object when entity type changes
       return newRows;
     });
   };
-
+  
+  const handleEntityObjectChange = (rowIndex: number, updatedEntityObject: string) => {
+    setTaskRows((prevRows) => {
+      const newRows = [...prevRows];
+      newRows[rowIndex].entityObject = [updatedEntityObject]; // Single entity object
+      return newRows;
+    });
+  };
+  
   // Function to add a custom column
   const addCustomColumn = () => {
     if (newColumnName) {
@@ -565,13 +571,16 @@ export default function Checklist() {
 
   return (
     <div className="p-6 space-y-3 text-lg font-poppins">
-
       <div className="flex justify-between items-center">
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-2xl font-semibold">{title}</CardTitle>
             <div className="flex items-center space-x-4">
-              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-2xl p-4 text-lg font-normal" onClick={publishChanges} size="lg">
+              <Button
+                className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-2xl p-4 text-lg font-normal"
+                onClick={publishChanges}
+                size="lg"
+              >
                 Publish changes
               </Button>
               <Avatar>
@@ -583,426 +592,52 @@ export default function Checklist() {
         </Card>
       </div>
 
-     <Card className="w-full">
-      <CardContent className="p-6 space-y-6">
-        <div className="border border-input rounded-2xl p-4 space-y-4">
-        <div className="grid grid-cols-4 gap-4 pb-2">
-          <div className="font-medium">Actions</div>
-          <div className="font-medium">Main Actor</div>
-          <div className="font-medium">Team</div>
-          <div className="font-medium">Designation</div>
-        </div>
-        <Separator className="my-4" />
-          {mainActorRows.map((row, index) => (
-            <div key={index} className="grid grid-cols-4 gap-4 items-center">
-              <Input
-                placeholder="Enter your Action"
-                value={row.actions}
-                onChange={(e) =>
-                  handleMainActorChange(index, "actions", e.target.value)
-                }
-                className="bg-gray-50 text-gray-500 text-base"
-              />
-              <Select
-                value={row.mainActor}
-                onValueChange={(value) => handleMainActorChange(index, "mainActor", value)}
-              >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                  <SelectValue placeholder="Select Actor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem key="realtime" value="realtime">
-                    Check on Realtime
-                  </SelectItem>
-                  {actorData.map((actor) => (
-                    <SelectItem key={actor.id} value={actor.Designated_Actor}>
-                      {actor.Designated_Actor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.team}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, "team", value)
-                }
-                disabled={row.mainActor.toLowerCase() === "realtime"}
-              >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                  <SelectValue placeholder="Select the team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(new Set(actorData.map(actor => actor.field))).map((field) => (
-                    <SelectItem key={field} value={field}>
-                      {field}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-row gap-x-3">
-              <Select
-                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.designation}
-                onValueChange={(value) => handleMainActorChange(index, "designation", value)}
-                 disabled={row.mainActor.toLowerCase() === "realtime"}
-              >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                  <SelectValue placeholder="Select the Designation" />
-                </SelectTrigger>
-                <SelectContent>
-                   {Array.from(new Set(actorData.map(actor => actor.designation))).map((designation) => (
-                    <SelectItem key={designation} value={designation}>
-                      {designation}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                  onClick={() => handleDelete()}
-                  variant="outline"
-                  size="icon"
-                  className="p-2"
-                >
-                  <Trash2 className="h-6 w-6" />
-                  <span className="sr-only">Delete row</span>
-                </Button>
-                </div>
-            </div>
-          ))}
-          <Button
-          variant="ghost"
-          className="flex items-center gap-2 text-base p-6 text-[#4285F4] hover:text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]/60 mt-5"
-          onClick={handleAddMainActorRow}
-        >
-          <span className="mr-2">+</span>
-          Add Row
-        </Button>
-        </div>
-        <div className="flex justify-end">
-          <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] text-lg rounded-xl" size="lg">
-            Save
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Main Actor Section */}
+      <MainActorSection
+        mainActorRows={mainActorRows}
+        actorData={actorData}
+        handleAddMainActorRow={handleAddMainActorRow}
+        handleMainActorChange={handleMainActorChange}
+        handleDelete={handleDelete}
+      />
 
-  <Card className="p-6">
-      <div className="space-y-6">
-        <div className="flex justify-between items-start text-sm">
-          <div className="">
-             <p className="text-gray-500 mb-1 text-lg">
-              The below columns are <span className="font-bold text-black">designed for you</span> to <span className="font-bold text-black">decide what aspects you want your team to include</span> while carrying out their work.
-            </p>
-            <p className="text-gray-500 mb-1 text-lg">
-              <span className="font-bold text-black">Unattended Column</span> means that it will not be shown in the application.
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200 text-lg font-light"
-            onClick={() => setIsColumnDialogOpen(true)}
-            size="lg"
-          >
-            Configure Columns
-          </Button>
-        </div>
+      {/* Task Table Section */}
+      <TaskTable
+        taskRows={taskRows}
+        columns={columns}
+        mainActorRows={mainActorRows}
+        entityTypes={entityTypes}
+        handleTaskChange={handleTaskChange}
+        handleEntityTypeChange={handleEntityTypeChange}
+        openFieldTypeDialog={openFieldTypeDialog}
+        handleAddTaskRow={handleAddTaskRow}
+      />
 
-        <div className="overflow-x-auto border p-3 rounded-xl">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="">
-                {columns.filter(col => col.visible).map((column) => (
-                  <th key={column.name} className={`p-3 text-left font-medium ${column.name === 'Task Number' ? 'w-44' : ''}`}>
-                    <div className={`flex items-center justify-between gap-3 bg-[#EAF2FF] text-[#4285F4] p-3 rounded-2xl ${column.name === 'Task Number' ? '' : 'w-full'}`}>
-                      {column.name}
-                      {column.name !== 'Task Number' && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 " />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{`Information about ${column.name}`}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {taskRows.map((row, rowIndex) => {
-                const associatedActor = mainActorRows.find(actor => actor.actions === row.actions);
-                if (associatedActor && associatedActor.designation.toLowerCase() === 'supervisor') {
-                  return null;
-                }
-                return (
-                  <tr key={row.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
-                    <td className="p-2">
-                      <div className="bg-[#EAF2FF] p-2 rounded text-[#4285F4] font-medium w-16 text-center w-full">
-                        {row.taskNumber}
-                      </div>
-                    </td>
-                    <td className="p-2">
-                      <Input
-                        placeholder="Enter Task name"
-                        value={row.taskName}
-                        onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
-                        className="bg-gray-50 text-gray-500 text-base"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <Select
-                        value={row.actions}
-                        onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
-                      >
-                        <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                          <SelectValue placeholder="Select action" />
-                        </SelectTrigger>
-                        <SelectContent className='bg-white'>
-                          {mainActorRows
-                            .filter(mainRow => mainRow.designation.toLowerCase() !== 'supervisor')
-                            .map((mainRow, index) => (
-                              mainRow.actions && (
-                                <SelectItem key={index} value={mainRow.actions}>
-                                  {mainRow.actions}
-                                </SelectItem>
-                              )
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="p-2">
-                      <div className="flex items-center justify-center border border-gray-300 rounded p-2 bg-white hover:bg-gray-50 transition-colors duration-200">
-                        <Checkbox
-                          checked={row.remark}
-                          onCheckedChange={(checked) => handleTaskChange(rowIndex, 'remark', checked)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm text-gray-600">Show remark</span>
-                      </div>
-                    </td>
-                    <td className="p-2">
-                    <Select
-                      value={row.entityType.join(',')}
-                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                    >
-                      <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                        <SelectValue placeholder="Select entity type/object">
-                          <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => (
-                          <React.Fragment key={parent.value}>
-                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
-                              <Checkbox
-                                checked={parent.children?.every((child) => row.entityType.includes(child.value))}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleEntityTypeChange(
-                                    rowIndex,
-                                    isChecked
-                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                      : row.entityType.filter((type) => !parent.children?.some((child) => child.value === type))
-                                  );
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="font-medium">{parent.name}</span>
-                            </div>
-                            {parent.children?.map((child) => (
-                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
-                                <Checkbox
-                                  checked={row.entityType.includes(child.value)}
-                                  onCheckedChange={(checked) => {
-                                    const isChecked = checked === true;
-                                    const updatedEntityTypes = isChecked
-                                      ? [...row.entityType, child.value]
-                                      : row.entityType.filter((type) => type !== child.value);
-                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                  }}
-                                  className="mr-2"
-                                />
-                                <span>{child.name}</span>
-                              </div>
-                            ))}
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    </td>
-                    <td className="p-2">
-                      <Select
-                        value={row.route}
-                        onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
-                      >
-                        <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                          <SelectValue placeholder="Select route" />
-                        </SelectTrigger>
-                        <SelectContent className='bg-white'>
-                          <SelectItem value="/image">Image Verification</SelectItem>
-                          <SelectItem value="/invoice">Document Scan</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    {columns.filter(col => col.visible && col.type).map((column) => (
-                      <td key={column.name} className="p-2">
-                        <div className="flex flex-col space-y-2">
-                          {renderCellInput(row, rowIndex, column, handleTaskChange, openFieldTypeDialog)}
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+      {/* Configure Columns Dialog */}
+      <ConfigureColumnsDialog
+        isOpen={isColumnDialogOpen}
+        onOpenChange={setIsColumnDialogOpen}
+        columns={columns}
+        setColumns={setColumns}
+        newColumnName={newColumnName}
+        setNewColumnName={setNewColumnName}
+        addCustomColumn={addCustomColumn}
+      />
 
-        <Button
-          variant="ghost"
-          className="flex items-center gap-2 text-base p-6 text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]"
-          onClick={handleAddTaskRow}
-        >
-          <span className="mr-2">+</span>
-          Add Row
-        </Button>
-      </div>
-
-    <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
-      <DialogContent className="max-w-md p-0 gap-0">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-medium">Configure Columns</h2>
-        </div>
-        
-        <div className="p-4 space-y-4">
-          {columns.map((column, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <Info className="w-4 h-4 text-gray-400" />
-              <span className="flex-grow text-base">{column.name}</span>
-              <Checkbox
-                checked={column.visible}
-                onCheckedChange={(checked) => {
-                  const newColumns = [...columns]
-                  newColumns[index] = { ...column, visible: checked as boolean }
-                  setColumns(newColumns)
-                }}
-                className="rounded-sm data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-              />
-            </div>
-          ))}
-          <div className="pt-2">
-              <Input
-                placeholder="New column name"
-                value={newColumnName}
-                onChange={(e) => setNewColumnName(e.target.value)}
-                className="focus:border-[#4285F4] transition-colors duration-200 text-base "
-              />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              className="bg-blue-500 hover:bg-blue-600 text-white ml-auto"
-              onClick={addCustomColumn}
-            >
-              Add Custom Column
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-          <Button 
-            variant="ghost" 
-            onClick={() => setIsColumnDialogOpen(false)}
-            className="text-gray-500 hover:text-gray-600 hover:bg-gray-100"
-          >
-            Discard
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* Field Type Dialog */}
       <FieldTypeDialog
         open={isFieldTypeDialogOpen}
         onOpenChange={setIsFieldTypeDialogOpen}
         columnName={editingCell?.columnName || ''}
         onSave={handleCellConfigSave}
-        initialConfig={editingCell ? taskRows[editingCell.rowIndex].cellConfigs?.[editingCell.columnName] : undefined}
+        initialConfig={
+          editingCell
+            ? taskRows[editingCell.rowIndex].cellConfigs?.[
+                editingCell.columnName
+              ]
+            : undefined
+        }
       />
-    </Card>
-    </div>
-  )
-}
-
-// Function to render input elements based on the cell configuration
-function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void, openFieldTypeDialog: (rowIndex: number, columnName: string) => void) {
-  const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-  if(cellConfig.type === 'blank') {
-    return null;
-  }
-  const inputElement = (() => {
-    switch (cellConfig.type) {
-      case 'text':
-        return (
-          <Input 
-            value={row[column.name] || ''}
-            onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-            className="bg-gray-100 text-gray-500 text-lg"
-          />
-        );
-      case 'number':
-        return (
-          <Input
-            type="number"
-            value={row[column.name] || ''}
-            onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-            className="bg-gray-50"
-          />
-        );
-      case 'checkbox':
-        return (
-          <Checkbox
-            checked={row[column.name] || false}
-            onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
-            className="border-2 border-gray-300 rounded-sm"
-          />
-        );
-      case 'select':
-        return (
-          <Select
-            value={row[column.name] || ''}
-            onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
-          >
-            <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-              <SelectValue placeholder={`Select ${column.name}`} />
-            </SelectTrigger>
-            <SelectContent>
-              {cellConfig.options?.map((option, optionIndex) => (
-                <SelectItem key={optionIndex} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      default:
-        return null;
-    }
-  })();
-
-  return (
-    <div className="flex flex-col space-y-2">
-      {inputElement}
-      {!cellConfig.type &&
-      <Button
-        variant="outline"
-        size="sm"
-        className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
-        onClick={() => openFieldTypeDialog(rowIndex, column.name)}
-      >
-        Set Field Type
-      </Button>
-      }
     </div>
   );
 }
