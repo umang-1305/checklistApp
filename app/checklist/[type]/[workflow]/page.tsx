@@ -491,13 +491,30 @@ function getDefaultValueForType(type: string) {
 
   // Function to publish changes
   const publishChanges = useCallback(async () => {
+    // Ensure entityObject is populated when entityType is selected
+    const updatedTaskRows = taskRows.map((taskRow) => {
+      if (taskRow.entityType.length > 0 && taskRow.entityObject.length === 0) {
+        // Get all entity objects associated with the selected entity types
+        const entityObjectsForType = taskRow.entityType.flatMap((entityType) => {
+          const entityObjects = entityData[entityType]; // Retrieve from entityData
+          return entityObjects ? Object.keys(entityObjects) : [];
+        });
+  
+        return {
+          ...taskRow,
+          entityObject: entityObjectsForType, // Add associated entity objects
+        };
+      }
+      return taskRow;
+    });
+  
     // Construct actors
     const actors = mainActorRows.reduce((acc, actor, index) => {
-      // Include all actors, even if fields are empty, using a single space " " for empty fields
       acc[`actor${index + 1}`] = {
         action: actor.actions || ' ',
         date: new Date().toUTCString(),
         designation: actor.designation || ' ',
+        inspected:'false',
         name: actor.mainActor || ' ',
         team: actor.team || ' ',
       };
@@ -505,56 +522,32 @@ function getDefaultValueForType(type: string) {
     }, {} as Record<string, any>);
   
     // Construct tasks
-    const tasks = taskRows.reduce((acc, task, index) => {
+    const tasks = updatedTaskRows.reduce((acc, task, index) => {
       const taskKey = `task${index + 1}`;
   
-      // Construct actions
-      const actions = mainActorRows.reduce(
-        (actionsAcc, actor, actorIndex) => {
-          if (task.actions === actor.actions) {
-            const actionKey = `action${actorIndex + 1}`;
-            actionsAcc[actionKey] = {
-              actionType: actor.actions || ' ',
-              actor: actor.mainActor || ' ',
-              isSigned: false,
-            };
-          }
-          return actionsAcc;
-        },
-        {} as Record<string, any>
-      );
-  
-      // Construct entityObjects
-      const entityObjects = task.entityType.reduce(
-        (entityAcc, entityType) => {
-          task.entityObject.forEach((entityObjName) => {
-            entityAcc[entityObjName] = {
-              customInput: {
-                input: true,
-                inputText: ' ',
-              },
-              entityType: entityType || ' ',
-            };
-          });
-          return entityAcc;
-        },
-        {} as Record<string, any>
-      );
-  
-      // Add custom columns to entityObjects
-      columns.forEach((column) => {
-        if (column.type && column.type !== 'checkbox') {
-          task.entityObject.forEach((entityObjName) => {
-            if (!entityObjects[entityObjName].customInput) {
-              entityObjects[entityObjName].customInput = {};
-            }
-            entityObjects[entityObjName].customInput[column.name] = {
-              input: true,
-              inputText: task[column.name] || ' ',
-            };
-          });
+      const actions = mainActorRows.reduce((actionsAcc, actor, actorIndex) => {
+        if (task.actions === actor.actions) {
+          actionsAcc[`action${actorIndex + 1}`] = {
+            actionType: actor.actions || ' ',
+            actor: actor.mainActor || ' ',
+            isSigned: false,
+          };
         }
-      });
+        return actionsAcc;
+      }, {} as Record<string, any>);
+  
+      const entityObjects = task.entityType.reduce((entityAcc, entityType) => {
+        task.entityObject.forEach((entityObjName) => {
+          entityAcc[entityObjName] = {
+            customInput: {
+              input: true,
+              inputText: ' ',
+            },
+            entityType: entityType || ' ',
+          };
+        });
+        return entityAcc;
+      }, {} as Record<string, any>);
   
       acc[taskKey] = {
         actions,
@@ -572,26 +565,17 @@ function getDefaultValueForType(type: string) {
     }, {} as Record<string, any>);
   
     // Construct entities
-    const entities = taskRows.reduce((acc, task) => {
+    const entities = updatedTaskRows.reduce((acc, task) => {
       task.entityType.forEach((entityType) => {
         if (!acc[entityType]) {
           acc[entityType] = {};
         }
         task.entityObject.forEach((entityObjName) => {
-          // Get entity object data from entityData
           const entityObjData = entityData[entityType]?.[entityObjName];
-          if (entityObjData) {
-            acc[entityType][entityObjName] = {
-              ID: entityObjData.ID || ' ',
-              name: entityObjData.name || ' ',
-            };
-          } else {
-            // If not found, use default values
-            acc[entityType][entityObjName] = {
-              ID: ' ',
-              name: entityObjName || ' ',
-            };
-          }
+          acc[entityType][entityObjName] = {
+            ID: entityObjData?.ID,
+            name: entityObjData?.name ,
+          };
         });
       });
       return acc;
@@ -607,7 +591,6 @@ function getDefaultValueForType(type: string) {
       },
     };
   
-    // Check if tasks object is empty
     if (Object.keys(tasks).length === 0) {
       toast({
         title: 'Error publishing changes',
@@ -650,7 +633,7 @@ function getDefaultValueForType(type: string) {
       });
     }
   }, [type, taskRows, mainActorRows, columns, workflow, step, entityData]);
-  
+      
   
 
   if (loading) {
