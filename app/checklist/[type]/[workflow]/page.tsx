@@ -527,7 +527,7 @@ export default function Checklist() {
 
     try {
       const response = await fetch(
-        `https://admin-backend-85801868683.us-central1.run.app/Workflows/replace/${workflow}`,
+        `https://admin-backend-85801868683.us-central1.run.app/Workflows/update/${workflow}`,
         {
           method: 'POST',
           headers: {
