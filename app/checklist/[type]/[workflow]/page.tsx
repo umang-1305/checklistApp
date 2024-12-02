@@ -41,7 +41,7 @@ interface TaskRow {
   taskNumber: string;
   taskName: string;
   actions: string;
-  remark: boolean;
+  // remark: boolean;
   entityType: string[]; // Now represents only entity types
   entityObject: string[]; // New field for entity objects
   route: string;
@@ -389,7 +389,11 @@ const [columns, setColumns] = useState<Column[]>([
       return newRows;
     });
   };
-    
+    // Function to handle updates to taskRows
+const handleTaskRowsChange = (updatedRows: TaskRow[]) => {
+  setTaskRows(updatedRows);
+};
+
   const handleEntityObjectChange = (rowIndex: number, updatedEntityObject: string) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
@@ -485,121 +489,147 @@ function getDefaultValueForType(type: string) {
     : 'Checklist & Sign';
 
   // Function to publish changes
-  const publishChanges = useCallback(async () => {
-    const updatedTaskRows = taskRows.map((taskRow) => {
-      let entityObjects = {};
-  
-      if (taskRow.entityType.length > 0) {
-        taskRow.entityType.forEach((entityType) => {
-          // Normalize entityType to match the keys in entityData
-          const normalizedEntityType = entityType.trim();
-          const objectsForType = entityData[normalizedEntityType];
-  
-          if (objectsForType) {
-            if (taskRow.entityObject.length > 0) {
-              // Specific objects selected
-              taskRow.entityObject.forEach((objName) => {
-                const normalizedObjName = objName.trim();
-                const objData = objectsForType[normalizedObjName];
-                if (objData) {
-                  entityObjects[normalizedObjName] = {
-                    ID: objData.ID || '',
-                    name: objData.name || normalizedObjName,
+// Function to publish changes
+// Function to publish changes
+const publishChanges = useCallback(async () => {
+  const updatedTaskRows = taskRows.map((taskRow) => {
+    let entityObjects = {};
+
+    if (taskRow.entityType.length > 0) {
+      taskRow.entityType.forEach((entityType) => {
+        // Normalize entityType to match the keys in entityData
+        const normalizedEntityType = entityType.trim();
+        const objectsForType = entityData[normalizedEntityType];
+
+        if (objectsForType) {
+          if (taskRow.entityObject.length > 0) {
+            // Specific objects selected
+            taskRow.entityObject.forEach((objName) => {
+              const normalizedObjName = objName.trim();
+              // Initialize the entity object entry
+              entityObjects[normalizedObjName] = {
+                entityType: normalizedEntityType,
+              };
+
+              // For each custom cell, add its data
+              if (taskRow.customCells && taskRow.customCells.length > 0) {
+                taskRow.customCells.forEach((customCell) => {
+                  const key = customCell.tag.toLowerCase().replace(/\s+/g, '_');
+                  entityObjects[normalizedObjName][key] = {
+                    input: true,
+                    inputText: " ",
                   };
-                }
-              });
-            } else {
-              // No specific objects selected, include all for the type
-              Object.keys(objectsForType).forEach((objName) => {
-                const objData = objectsForType[objName];
-                if (objData) {
-                  entityObjects[objName] = {
-                    ID: objData.ID || '',
-                    name: objData.name || objName,
-                  };
-                }
-              });
-            }
+                });
+              }
+            });
           } else {
-            console.warn(`Entity Type "${normalizedEntityType}" not found in entityData.`);
+            // No specific objects selected, include all for the type
+            Object.keys(objectsForType).forEach((objName) => {
+              // Initialize the entity object entry
+              entityObjects[objName] = {
+                entityType: normalizedEntityType,
+              };
+
+              // For each custom cell, add its data
+              if (taskRow.customCells && taskRow.customCells.length > 0) {
+                taskRow.customCells.forEach((customCell) => {
+                  const key = customCell.tag.toLowerCase().replace(/\s+/g, '_');
+                  entityObjects[objName][key] = {
+                    input: true,
+                    inputText: " ",
+                  };
+                });
+              }
+            });
           }
-        });
-      }
-  
-      return { ...taskRow, entityObjects };
-    });
-  
-    console.log('Updated Task Rows Before Payload:', JSON.stringify(updatedTaskRows, null, 2));
-  
-    const payload = {
-      [step]: {
-        actors: mainActorRows.reduce((acc, actor, index) => {
-          acc[`actor${index + 1}`] = {
-            action: actor.actions || ' ',
-            date: new Date().toUTCString(),
-            designation: actor.designation || ' ',
-            inspected: 'false',
-            name: actor.mainActor || ' ',
-            team: actor.team || ' ',
-          };
-          return acc;
-        }, {}),
-        tasks: updatedTaskRows.reduce((acc, task, index) => {
-          acc[`task${index + 1}`] = {
-            actions: {},
-            entityObjects: task.entityObjects || {},
-            remark: {
-              input: task.remark,
-              remarkText: ' ',
-              showRemark: task.remark,
-            },
-            route: task.route || ' ',
-            taskLabel: task.taskName || ' ',
-          };
-          return acc;
-        }, {}),
-        name: `${type} Checklist`,
-        stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
-      },
-    };
-  
-    console.log('Final Payload to Send:', JSON.stringify(payload, null, 2));
-  
-    try {
-      const response = await fetch(
-        `https://admin-backend-85801868683.us-central1.run.app/Workflows/update_old/${workflow}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
+        } else {
+          console.warn(`Entity Type "${normalizedEntityType}" not found in entityData.`);
         }
-      );
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Network response was not ok');
-      }
-  
-      const responseData = await response.json();
-      console.log('API Response:', JSON.stringify(responseData, null, 2));
-  
-      toast({
-        title: 'Changes published successfully',
-        description: 'Your changes have been saved and published.',
-      });
-    } catch (error) {
-      console.error('Error Response from API:', error);
-      toast({
-        title: 'Error publishing changes',
-        description: error.message || 'There was a problem publishing your changes.',
-        variant: 'destructive',
       });
     }
-  }, [type, taskRows, mainActorRows, workflow, step, entityData]);
-    
-  if (loading) {
+
+    return { ...taskRow, entityObjects };
+  });
+
+  console.log('Updated Task Rows Before Payload:', JSON.stringify(updatedTaskRows, null, 2));
+
+  const payload = {
+    [step]: {
+      actors: mainActorRows.reduce((acc, actor, index) => {
+        acc[`actor${index + 1}`] = {
+          action: actor.actions || ' ',
+          date: new Date().toUTCString(),
+          designation: actor.designation || ' ',
+          inspected: 'false',
+          name: actor.mainActor || ' ',
+          team: actor.team || ' ',
+        };
+        return acc;
+      }, {}),
+      tasks: updatedTaskRows.reduce((acc, task, index) => {
+        // Process actions for the task
+        let taskActions = {};
+        if (task.actions) {
+          taskActions[`action2`] = {
+            actionType: task.actions || ' ',
+            actor: "actor1", // Replace "actor1" with the appropriate value if needed
+            isSigned: false, // Set to false by default or as required
+          };
+        }
+
+        acc[`task${index + 1}`] = {
+          actions: taskActions,
+          entityObjects: task.entityObjects || {},
+          remark: {
+            input: task.remark,
+            remarkText: ' ',
+            showRemark: task.remark,
+          },
+          route: task.route || ' ',
+          taskLabel: task.taskName || ' ',
+        };
+        return acc;
+      }, {}),
+      name: `${type} Checklist`,
+      stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
+    },
+  };
+
+  console.log('Final Payload to Send:', JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await fetch(
+      `https://admin-backend-85801868683.us-central1.run.app/Workflows/update_old/${workflow}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Network response was not ok');
+    }
+
+    const responseData = await response.json();
+    console.log('API Response:', JSON.stringify(responseData, null, 2));
+
+    toast({
+      title: 'Changes published successfully',
+      description: 'Your changes have been saved and published.',
+    });
+  } catch (error) {
+    console.error('Error Response from API:', error);
+    toast({
+      title: 'Error publishing changes',
+      description: error.message || 'There was a problem publishing your changes.',
+      variant: 'destructive',
+    });
+  }
+}, [type, taskRows, mainActorRows, workflow, step, entityData]);  if (loading) {
     return <div>Loading...</div>;
   }
 
@@ -637,21 +667,21 @@ function getDefaultValueForType(type: string) {
 
       {/* Task Table Section */}
       <TaskTable
-        taskRows={taskRows}
-        columns={columns}
-        mainActorRows={mainActorRows}
-        entityTypes={entityTypes}
-        handleTaskChange={handleTaskChange}
-        handleEntityTypeChange={handleEntityTypeChange}
-        openFieldTypeDialog={openFieldTypeDialog}
-        handleEntitySelection={handleEntitySelection}
-        handleAddTaskRow={handleAddTaskRow}
-        setIsColumnDialogOpen={setIsColumnDialogOpen}
-        handleDelete={handleDelete}
-        setIsFieldTypeDialogOpen={setIsFieldTypeDialogOpen}
-        handleCellConfigSave={handleCellConfigSave}
-      />
-
+  taskRows={taskRows}
+  handleTaskRowsChange={handleTaskRowsChange}
+  columns={columns}
+  mainActorRows={mainActorRows}
+  entityTypes={entityTypes}
+  handleTaskChange={handleTaskChange}
+  handleEntityTypeChange={handleEntityTypeChange}
+  openFieldTypeDialog={openFieldTypeDialog}
+  handleEntitySelection={handleEntitySelection}
+  handleAddTaskRow={handleAddTaskRow}
+  setIsColumnDialogOpen={setIsColumnDialogOpen}
+  handleDelete={handleDelete}
+  setIsFieldTypeDialogOpen={setIsFieldTypeDialogOpen}
+  handleCellConfigSave={handleCellConfigSave}
+/>
       {/* Configure Columns Dialog */}
       <ConfigureColumnsDialog
         isOpen={isColumnDialogOpen}
