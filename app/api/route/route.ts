@@ -1,6 +1,6 @@
 // /app/api/route/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import fetch from 'node-fetch';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
