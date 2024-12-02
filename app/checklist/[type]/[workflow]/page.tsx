@@ -429,45 +429,38 @@ const [columns, setColumns] = useState<Column[]>([
   };
 
   // Function to save cell configuration
-const handleCellConfigSave = (config: CellConfig) => {
-  if (editingCell) {
-    const updatedTaskRows = [...taskRows];
-    const rowIndex = editingCell.rowIndex;
-    const columnName = editingCell.columnName;
-
-    // Ensure config always has a type
-    const validConfig = {
-      type: config.type || 'text', // Default to 'text' if no type is provided
-      ...(config.options && { options: config.options })
-    };
-
-    // Initialize cellConfigs if it doesn't exist
-    if (!updatedTaskRows[rowIndex].cellConfigs) {
-      updatedTaskRows[rowIndex].cellConfigs = {};
-    }
-
-    // Save the configuration
-    updatedTaskRows[rowIndex].cellConfigs![columnName] = validConfig;
-
-    // If the configuration changes the type, reset the column value
-    updatedTaskRows[rowIndex][columnName] = getDefaultValueForType(validConfig.type);
-
-    setTaskRows(updatedTaskRows);
-
-    // Update columns array to reflect the new type
-    setColumns(prevColumns => 
-      prevColumns.map(col => 
-        col.name === columnName 
-          ? { ...col, type: validConfig.type, options: validConfig.options }
-          : col
-      )
-    );
-  }
+  const handleCellConfigSave = (config: CellConfig) => {
+    if (editingCell) {
+      const updatedTaskRows = [...taskRows];
+      const rowIndex = editingCell.rowIndex;
+      const columnName = editingCell.columnName;
   
-  setIsFieldTypeDialogOpen(false);
-  setEditingCell(null);
-};
-
+      // Ensure config always has a type
+      const validConfig = {
+        type: config.type || 'text', // Default to 'text' if no type is provided
+        ...(config.options && { options: config.options })
+      };
+  
+      // Initialize cellConfigs if it doesn't exist
+      if (!updatedTaskRows[rowIndex].cellConfigs) {
+        updatedTaskRows[rowIndex].cellConfigs = {};
+      }
+  
+      // Save the configuration
+      updatedTaskRows[rowIndex].cellConfigs![columnName] = validConfig;
+  
+      // If the configuration changes the type, reset the column value
+      updatedTaskRows[rowIndex][columnName] = getDefaultValueForType(validConfig.type);
+  
+      setTaskRows(updatedTaskRows);
+  
+      // No need to update columns array since field type is per cell
+    }
+  
+    setIsFieldTypeDialogOpen(false);
+    setEditingCell(null);
+  };
+    
 function getDefaultValueForType(type: string) {
   switch(type) {
     case 'text': return '';

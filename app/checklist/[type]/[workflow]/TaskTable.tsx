@@ -21,6 +21,7 @@ interface TaskRow {
   entityType: string[]; // Always an array
   entityObject: string[]; // Always an array
   route: string;
+  cellConfigs?: { [key: string]: CellConfig };
   [key: string]: any;
 }
 
@@ -46,6 +47,11 @@ interface MainActorRow {
   person: string;
 }
 
+interface CellConfig {
+  type: string;
+  options?: string[];
+}
+
 interface TaskTableProps {
   taskRows: TaskRow[];
   columns: Column[];
@@ -63,7 +69,7 @@ interface TaskTableProps {
   ) => void;
   handleAddTaskRow: () => void;
   setIsColumnDialogOpen: (open: boolean) => void;
-  setIsFieldTypeDialogOpen: (rowIndex: number, columnName: string) => void;
+  openFieldTypeDialog: (rowIndex: number, columnName: string) => void;
 }
 
 export const TaskTable: React.FC<TaskTableProps> = ({
@@ -75,7 +81,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   handleEntitySelection,
   handleAddTaskRow,
   setIsColumnDialogOpen,
-  setIsFieldTypeDialogOpen
+  openFieldTypeDialog,
 }) => {
   return (
     <Card className="p-6">
@@ -98,7 +104,9 @@ export const TaskTable: React.FC<TaskTableProps> = ({
           <Button
             variant="outline"
             className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200 text-lg font-light"
-            onClick={() => {setIsColumnDialogOpen(true)}}
+            onClick={() => {
+              setIsColumnDialogOpen(true);
+            }}
           >
             Configure Columns
           </Button>
@@ -168,7 +176,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       }
                       options={mainActorRows.map((actor) => ({
                         value: actor.actions,
-                        label: actor.actions
+                        label: actor.actions,
                       }))}
                       placeholder="Select action"
                       searchPlaceholder="Search actions..."
@@ -192,11 +200,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     <Combobox
                       value={row.entityType[0] || null}
                       onSelect={(value) =>
-                        handleEntitySelection(rowIndex, "entityType", value ? [value] : [])
+                        handleEntitySelection(
+                          rowIndex,
+                          "entityType",
+                          value ? [value] : []
+                        )
                       }
                       options={entityTypes.map((type) => ({
                         value: type.value,
-                        label: type.name
+                        label: type.name,
                       }))}
                       placeholder="Select Entity Type"
                       searchPlaceholder="Search entity types..."
@@ -208,14 +220,18 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     <Combobox
                       value={row.entityObject[0] || null}
                       onSelect={(value) =>
-                        handleEntitySelection(rowIndex, "entityObject", value ? [value] : [])
+                        handleEntitySelection(
+                          rowIndex,
+                          "entityObject",
+                          value ? [value] : []
+                        )
                       }
                       options={
                         entityTypes
                           .find((type) => type.value === row.entityType[0])
                           ?.children?.map((obj) => ({
                             value: obj.value,
-                            label: obj.name
+                            label: obj.name,
                           })) || []
                       }
                       placeholder="Select Entity Object"
@@ -228,32 +244,52 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   <td className="p-2">
                     <Combobox
                       value={row.route}
-                      onSelect={(value) => handleTaskChange(rowIndex, 'route', value)}
+                      onSelect={(value) =>
+                        handleTaskChange(rowIndex, "route", value)
+                      }
                       options={[
                         { value: "/image", label: "Image Verification" },
-                        { value: "/invoice", label: "Document Scan" }
+                        { value: "/invoice", label: "Document Scan" },
                       ]}
                       placeholder="Select route"
                       searchPlaceholder="Search routes..."
                     />
                   </td>
 
-                  {columns.filter(col => col.visible && col.type).map((column) => (
-                    <td key={column.name} className="p-2">
-                      <div className="flex flex-col space-y-2">
-                        {renderCellInput(row, rowIndex, column, handleTaskChange)}
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
-                          onClick={() => setIsFieldTypeDialogOpen(rowIndex, column.name)}
-                        >
-                          Set Field Type
-                        </Button>
-                      </div>
-                    </td>
-                  ))}
+                  {/* Custom Columns */}
+                  {columns
+                    .filter((col) => col.visible && col.name !== "Task Number" && col.name !== "Task Name" && col.name !== "Actions" && col.name !== "Remark" && col.name !== "Entity Type" && col.name !== "Entity Object" && col.name !== "Route")
+                    .map((column) => {
+                      // Define cellConfig here
+                      const cellConfig =
+                        row.cellConfigs?.[column.name] || {};
+
+                      return (
+                        <td key={column.name} className="p-2">
+                          <div className="flex flex-col space-y-2">
+                            {renderCellInput(
+                              row,
+                              rowIndex,
+                              column,
+                              handleTaskChange
+                            )}
+
+                            {!cellConfig.type && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+                                onClick={() =>
+                                  openFieldTypeDialog(rowIndex, column.name)
+                                }
+                              >
+                                Set Field Type
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
                 </tr>
               ))}
             </tbody>
@@ -274,47 +310,83 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   );
 };
 
-function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, field: keyof TaskRow | string, value: any) => void) {
-  const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-  if(!cellConfig.type) return null;
+function renderCellInput(
+  row: TaskRow,
+  rowIndex: number,
+  column: Column,
+  handleTaskChange: (
+    rowIndex: number,
+    field: keyof TaskRow | string,
+    value: any
+  ) => void
+) {
+  const cellConfig =
+    row.cellConfigs?.[column.name] || {
+      type: column.type,
+      options: column.options,
+    };
+  if (!cellConfig.type) return null;
   switch (cellConfig.type) {
-    case 'text':
+    case "text":
       return (
         <Input
-          value={row[column.name] || ''}
-          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          value={row[column.name] || ""}
+          onChange={(e) =>
+            handleTaskChange(rowIndex, column.name, e.target.value)
+          }
           className="bg-gray-50"
         />
       );
-    case 'number':
+    case "number":
       return (
         <Input
           type="number"
-          value={row[column.name] || ''}
-          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          value={row[column.name] || ""}
+          onChange={(e) =>
+            handleTaskChange(rowIndex, column.name, e.target.value)
+          }
           className="bg-gray-50"
         />
       );
-    case 'checkbox':
+    case "checkbox":
       return (
         <Checkbox
           checked={row[column.name] || false}
-          onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
+          onCheckedChange={(checked) =>
+            handleTaskChange(rowIndex, column.name, checked)
+          }
           className="border-2 border-gray-300 rounded-sm"
         />
       );
-    case 'select':
-    case 'multi-select':
+    case "select":
       return (
         <Combobox
           value={row[column.name] || null}
-          onSelect={(value) => handleTaskChange(rowIndex, column.name, value)}
+          onSelect={(value) =>
+            handleTaskChange(rowIndex, column.name, value)
+          }
           options={(cellConfig.options || []).map((option) => ({
             value: option,
-            label: option
+            label: option,
           }))}
           placeholder={`Select ${column.name}`}
           searchPlaceholder={`Search ${column.name.toLowerCase()}...`}
+        />
+      );
+    case "multi-select":
+      return (
+        <Combobox
+          value={row[column.name] || []}
+          onSelect={(value) =>
+            handleTaskChange(rowIndex, column.name, value)
+          }
+          options={(cellConfig.options || []).map((option) => ({
+            value: option,
+            label: option,
+          }))}
+          placeholder={`Select ${column.name}`}
+          searchPlaceholder={`Search ${column.name.toLowerCase()}...`}
+          isMulti
         />
       );
     default:
