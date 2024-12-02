@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview'
 import { Separator } from '@/components/ui/separator'
 import { Button } from "@/app/components/ui/button"
 import { Checkbox } from "@/app/components/ui/checkbox"
@@ -15,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Switch } from '@/components/ui/switch'
 import { toast } from "@/app/components/ui/use-toast"
+import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview'
 
 
 interface MainActorRow {
@@ -130,7 +130,7 @@ export default function Checklist({ params }: ChecklistProps) {
   const [newOptionInput, setNewOptionInput] = useState('');
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [newColumnFieldType, setNewColumnFieldType] = useState<string>('');
+  const [newColumnFieldType, setNewColumnFieldType] = useState<string>('text');
   const [newColumnFieldOptions, setNewColumnFieldOptions] = useState<string[]>([]);
 
   const [actorData, setActorData] = useState<ActorData[]>([]);
@@ -244,7 +244,13 @@ export default function Checklist({ params }: ChecklistProps) {
 
   const handleEntityTypeChange = (rowIndex: number, selectedValues: string[]) => {
     const newRows = [...taskRows];
-    newRows[rowIndex].entityType = selectedValues;
+    const updatedEntityTypes = selectedValues.map(value => {
+      const parentEntity = entityTypes.find(parent => 
+        parent.value === value || parent.children?.some(child => child.value === value)
+      );
+      return parentEntity ? parentEntity.value : value;
+    });
+    newRows[rowIndex].entityType = updatedEntityTypes;
     setTaskRows(newRows);
   };
 
@@ -253,7 +259,7 @@ export default function Checklist({ params }: ChecklistProps) {
       const newColumn: Column = { 
         name: newColumnName, 
         visible: true, 
-        type: newColumnType
+        type: 'text'  // Default to text type
       };
       setColumns([...columns, newColumn]);
       setTaskRows(taskRows.map(row => ({ 
@@ -261,7 +267,7 @@ export default function Checklist({ params }: ChecklistProps) {
         [newColumnName]: '',
         cellConfigs: {
           ...row.cellConfigs,
-          [newColumnName]: { type: '' }
+          [newColumnName]: { type: 'text' }
         }
       })));
       setNewColumnName('');
@@ -336,12 +342,13 @@ export default function Checklist({ params }: ChecklistProps) {
       }, {} as Record<string, any>);
 
       const entityObjects = task.entityType.reduce((entityAcc, entity, entityIndex) => {
+        const parentEntity = entityTypes.find(parent => parent.value === entity);
         entityAcc[`EO${entityIndex + 1}`] = {
           customInput: {
             input: true,
             inputText: ""
           },
-          entityType: entity
+          entityType: parentEntity ? parentEntity.name : entity
         };
         return entityAcc;
       }, {} as Record<string, any>);
@@ -395,7 +402,7 @@ export default function Checklist({ params }: ChecklistProps) {
     }
 
     try {
-      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow13', {
+      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow14', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -424,13 +431,13 @@ export default function Checklist({ params }: ChecklistProps) {
   }, [type, taskRows, mainActorRows, columns]);
 
   return (
-    <div className="p-6 space-y-3 text-lg font-poppins">
+    <div className="p-6 space-y-8">
       <div className="flex justify-between items-center">
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-2xl font-semibold">{title}</CardTitle>
             <div className="flex items-center space-x-4">
-              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-2xl p-4 text-lg font-normal" onClick={publishChanges} size="lg">
+              <Button className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-lg" onClick={publishChanges}>
                 Publish changes
               </Button>
               <Avatar>
@@ -444,7 +451,7 @@ export default function Checklist({ params }: ChecklistProps) {
 
      <Card className="w-full">
       <CardContent className="p-6 space-y-6">
-        <div className="border border-input rounded-2xl p-4 space-y-4">
+        <div className="border border-input rounded-md p-4 space-y-4">
         <div className="grid grid-cols-4 gap-4 pb-2">
           <div className="font-medium">Actions</div>
           <div className="font-medium">Main Actor</div>
@@ -460,19 +467,16 @@ export default function Checklist({ params }: ChecklistProps) {
                 onChange={(e) =>
                   handleMainActorChange(index, "actions", e.target.value)
                 }
-                className="bg-gray-50 text-gray-500 text-base"
+                className="bg-muted"
               />
               <Select
                 value={row.mainActor}
                 onValueChange={(value) => handleMainActorChange(index, "mainActor", value)}
               >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+                <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select Actor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem key="realtime" value="realtime">
-                    Check on Realtime
-                  </SelectItem>
                   {actorData.map((actor) => (
                     <SelectItem key={actor.id} value={actor.Designated_Actor}>
                       {actor.Designated_Actor}
@@ -481,13 +485,10 @@ export default function Checklist({ params }: ChecklistProps) {
                 </SelectContent>
               </Select>
               <Select
-                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.team}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, "team", value)
-                }
-                disabled={row.mainActor.toLowerCase() === "realtime"}
+                value={row.team}
+                onValueChange={(value) => handleMainActorChange(index, "team", value)}
               >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+                <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select the team" />
                 </SelectTrigger>
                 <SelectContent>
@@ -498,17 +499,15 @@ export default function Checklist({ params }: ChecklistProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <div className="flex flex-row gap-x-3">
               <Select
-                value={row.mainActor.toLowerCase() === "realtime" ? "" : row.designation}
+                value={row.designation}
                 onValueChange={(value) => handleMainActorChange(index, "designation", value)}
-                 disabled={row.mainActor.toLowerCase() === "realtime"}
               >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+                <SelectTrigger className="bg-background border border-input">
                   <SelectValue placeholder="Select the Designation" />
                 </SelectTrigger>
                 <SelectContent>
-                   {Array.from(new Set(actorData.map(actor => actor.designation))).map((designation) => (
+                  {Array.from(new Set(actorData.map(actor => actor.designation))).map((designation) => (
                     <SelectItem key={designation} value={designation}>
                       {designation}
                     </SelectItem>
@@ -516,28 +515,27 @@ export default function Checklist({ params }: ChecklistProps) {
                 </SelectContent>
               </Select>
               <Button
-                  onClick={() => handleDelete()}
-                  variant="outline"
+                  onClick={() => handleDelete(index)}
+                  variant="ghost"
                   size="icon"
-                  className="p-2"
+                  className="p-1"
                 >
-                  <Trash2 className="h-6 w-6" />
+                  <Trash2 className="h-4 w-4" />
                   <span className="sr-only">Delete row</span>
                 </Button>
-                </div>
             </div>
           ))}
-          <Button
+        </div>
+        <Button
           variant="ghost"
-          className="flex items-center gap-2 text-base p-6 text-[#4285F4] hover:text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]/60 mt-5"
+          className="flex items-center gap-2 text-base p-6 text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]"
           onClick={handleAddMainActorRow}
         >
           <span className="mr-2">+</span>
           Add Row
         </Button>
-        </div>
         <div className="flex justify-end">
-          <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] text-lg rounded-xl" size="lg">
+          <Button className=" bg-[#4285F4] text-white hover:bg-[#3367D6] " size="lg">
             Save
           </Button>
         </div>
@@ -548,16 +546,16 @@ export default function Checklist({ params }: ChecklistProps) {
       <div className="space-y-6">
         <div className="flex justify-between items-start text-sm">
           <div className="">
-             <p className="text-gray-500 mb-1 text-lg">
+             <p className="text-gray-600 mb-1 text-md">
               The below columns are <span className="font-bold text-black">designed for you</span> to <span className="font-bold text-black">decide what aspects you want your team to include</span> while carrying out their work.
             </p>
-            <p className="text-gray-500 mb-1 text-lg">
+            <p className="text-gray-600 mb-1 text-md">
               <span className="font-bold text-black">Unattended Column</span> means that it will not be shown in the application.
             </p>
           </div>
           <Button 
             variant="outline" 
-            className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200 text-lg font-light"
+            className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200"
             onClick={() => setIsColumnDialogOpen(true)}
             size="lg"
           >
@@ -565,26 +563,24 @@ export default function Checklist({ params }: ChecklistProps) {
           </Button>
         </div>
 
-        <div className="overflow-x-auto border p-3 rounded-xl">
+        <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="">
+              <tr className="bg-[#EAF2FF] text-[#4285F4]">
                 {columns.filter(col => col.visible).map((column) => (
-                  <th key={column.name} className={`p-3 text-left font-medium ${column.name === 'Task Number' ? 'w-44' : ''}`}>
-                    <div className={`flex items-center justify-between gap-3 bg-[#EAF2FF] text-[#4285F4] p-3 rounded-2xl ${column.name === 'Task Number' ? '' : 'w-full'}`}>
+                  <th key={column.name} className="p-3 text-left font-medium">
+                    <div className="flex items-center gap-2">
                       {column.name}
-                      {column.name !== 'Task Number' && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 " />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{`Information about ${column.name}`}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-4 w-4 cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{`Information about ${column.name}`}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </th>
                 ))}
@@ -608,7 +604,7 @@ export default function Checklist({ params }: ChecklistProps) {
                         placeholder="Enter Task name"
                         value={row.taskName}
                         onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
-                        className="bg-gray-50 text-gray-500 text-base"
+                        className="bg-gray-50 focus:bg-white transition-colors duration-200"
                       />
                     </td>
                     <td className="p-2">
@@ -616,19 +612,17 @@ export default function Checklist({ params }: ChecklistProps) {
                         value={row.actions}
                         onValueChange={(value) => handleTaskChange(rowIndex, 'actions', value)}
                       >
-                        <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
                           <SelectValue placeholder="Select action" />
                         </SelectTrigger>
                         <SelectContent className='bg-white'>
-                          {mainActorRows
-                            .filter(mainRow => mainRow.designation.toLowerCase() !== 'supervisor')
-                            .map((mainRow, index) => (
-                              mainRow.actions && (
-                                <SelectItem key={index} value={mainRow.actions}>
-                                  {mainRow.actions}
-                                </SelectItem>
-                              )
-                            ))}
+                          {mainActorRows.map((mainRow, index) => (
+                            mainRow.actions && (
+                              <SelectItem key={index} value={mainRow.actions}>
+                                {mainRow.actions}
+                              </SelectItem>
+                            )
+                          ))}
                         </SelectContent>
                       </Select>
                     </td>
@@ -643,66 +637,70 @@ export default function Checklist({ params }: ChecklistProps) {
                       </div>
                     </td>
                     <td className="p-2">
-                    <Select
-                      value={row.entityType.join(',')}
-                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                    >
-                      <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                        <SelectValue placeholder="Select entity type/object">
-                          <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => (
-                          <React.Fragment key={parent.value}>
-                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
-                              <Checkbox
-                                checked={parent.children?.every((child) => row.entityType.includes(child.value))}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleEntityTypeChange(
-                                    rowIndex,
-                                    isChecked
-                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                      : row.entityType.filter((type) => !parent.children?.some((child) => child.value === type))
-                                  );
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="font-medium">{parent.name}</span>
-                            </div>
-                            {parent.children?.map((child) => (
-                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
+                      <Select
+                        value={row.entityType}
+                        onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
+                        multiple
+                      >
+                        <SelectTrigger className="border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white text-gray-500">
+                          <SelectValue placeholder="Select entity type/object">
+                            <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
+                          {entityTypes.map((parent) => (
+                            <React.Fragment key={parent.value}>
+                              <div className="flex items-center px-2 py-1 hover:bg-gray-100">
                                 <Checkbox
-                                  checked={row.entityType.includes(child.value)}
+                                  checked={parent.children?.some((child) => row.entityType.includes(parent.value))}
                                   onCheckedChange={(checked) => {
                                     const isChecked = checked === true;
-                                    const updatedEntityTypes = isChecked
-                                      ? [...row.entityType, child.value]
-                                      : row.entityType.filter((type) => type !== child.value);
-                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
+                                    const childValues = parent.children?.map(child => child.value) || [];
+                                    handleEntityTypeChange(
+                                      rowIndex,
+                                      isChecked
+                                        ? [...row.entityType, ...childValues]
+                                        : row.entityType.filter((type) => !childValues.includes(type))
+                                    );
                                   }}
                                   className="mr-2"
                                 />
-                                <span>{child.name}</span>
+                                <span className="font-medium">{parent.name}</span>
                               </div>
-                            ))}
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                              {parent.children?.map((child) => (
+                                <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
+                                  <Checkbox
+                                    checked={row.entityType.includes(parent.value)}
+                                    onCheckedChange={(checked) => {
+                                      const isChecked = checked === true;
+                                      handleEntityTypeChange(
+                                        rowIndex,
+                                        isChecked
+                                          ? [...row.entityType, child.value]
+                                          : row.entityType.filter((type) => type !== parent.value)
+                                      );
+                                    }}
+                                    className="mr-2"
+                                  />
+                                  <span>{child.name}</span>
+                                </div>
+                              ))}
+                            </React.Fragment>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
                     <td className="p-2">
                       <Select
                         value={row.route}
                         onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
                       >
-                        <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+                        <SelectTrigger className="bg-white border border-gray-300 focus:border-[#4285F4] transition-colors duration-200">
                           <SelectValue placeholder="Select route" />
                         </SelectTrigger>
                         <SelectContent className='bg-white'>
-                          <SelectItem value="/image">Image Verification</SelectItem>
-                          <SelectItem value="/invoice">Document Scan</SelectItem>
+                          <SelectItem value="image_verification">Image Verification</SelectItem>
+                          <SelectItem value="document_scan">Document Scan</SelectItem>
                         </SelectContent>
                       </Select>
                     </td>
@@ -730,57 +728,43 @@ export default function Checklist({ params }: ChecklistProps) {
         </Button>
       </div>
 
-    <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
-      <DialogContent className="max-w-md p-0 gap-0">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-medium">Configure Columns</h2>
-        </div>
-        
-        <div className="p-4 space-y-4">
-          {columns.map((column, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <Info className="w-4 h-4 text-gray-400" />
-              <span className="flex-grow text-base">{column.name}</span>
-              <Checkbox
-                checked={column.visible}
-                onCheckedChange={(checked) => {
-                  const newColumns = [...columns]
-                  newColumns[index] = { ...column, visible: checked as boolean }
-                  setColumns(newColumns)
-                }}
-                className="rounded-sm data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-              />
-            </div>
-          ))}
-          <div className="pt-2">
+      <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
+        <DialogContent className="bg-white shadow-lg rounded-lg">
+          <DialogHeader>
+            <DialogTitle>Configure Columns</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {columns.map((column, index) => (
+              <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-100 rounded transition-colors duration-200">
+                <span>{column.name}</span>
+                <Switch
+                  checked={column.visible}
+                  onCheckedChange={(checked) => {
+                    const newColumns = [...columns];
+                    newColumns[index] = { ...column, visible: checked };
+                    setColumns(newColumns);
+                  }}
+                />
+              </div>
+            ))}
+            <Separator />
+            <div className="space-y-2">
               <Input
                 placeholder="New column name"
                 value={newColumnName}
                 onChange={(e) => setNewColumnName(e.target.value)}
-                className="focus:border-[#4285F4] transition-colors duration-200 text-base "
+                className="focus:border-[#4285F4] transition-colors duration-200"
               />
+              <Button 
+                onClick={addCustomColumn}
+                className="w-full bg-[#4285F4] text-white hover:bg-[#3367D6] transition-colors duration-200"
+              >
+                Add Custom Column
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              className="bg-blue-500 hover:bg-blue-600 text-white ml-auto"
-              onClick={addCustomColumn}
-            >
-              Add Custom Column
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-          <Button 
-            variant="ghost" 
-            onClick={() => setIsColumnDialogOpen(false)}
-            className="text-gray-500 hover:text-gray-600 hover:bg-gray-100"
-          >
-            Discard
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
       <FieldTypeDialog
         open={isFieldTypeDialogOpen}
         onOpenChange={setIsFieldTypeDialogOpen}
@@ -795,9 +779,7 @@ export default function Checklist({ params }: ChecklistProps) {
 
 function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void, openFieldTypeDialog: (rowIndex: number, columnName: string) => void) {
   const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-  if(cellConfig.type === 'blank') {
-    return null;
-  }
+  
   const inputElement = (() => {
     switch (cellConfig.type) {
       case 'text':
@@ -805,7 +787,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
           <Input 
             value={row[column.name] || ''}
             onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
-            className="bg-gray-100 text-gray-500 text-lg"
+            className="bg-gray-50"
           />
         );
       case 'number':
@@ -831,7 +813,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
             value={row[column.name] || ''}
             onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
           >
-            <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
+            <SelectTrigger className="bg-white border border-gray-300">
               <SelectValue placeholder={`Select ${column.name}`} />
             </SelectTrigger>
             <SelectContent>
@@ -851,7 +833,6 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
   return (
     <div className="flex flex-col space-y-2">
       {inputElement}
-      {!cellConfig.type &&
       <Button
         variant="outline"
         size="sm"
@@ -860,7 +841,6 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
       >
         Set Field Type
       </Button>
-}
     </div>
   );
 }
