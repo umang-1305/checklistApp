@@ -164,16 +164,23 @@ export default function Checklist() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        if (data.status === 'success') {
-          setEntityData(data.data);
+  
+        if (data.status === 'success' && data.data.entities?.equipment) {
+          // Extract and map `equipment` data
+          const equipmentData = data.data.entities.equipment;
+          const mappedEntityTypes = Object.keys(equipmentData).map((key) => ({
+            name: equipmentData[key].name,
+            value: key.toLowerCase() // Assuming you want keys like `RMG_1` as values
+          }));
+          setEntityData(mappedEntityTypes);
         } else {
-          console.error('Failed to fetch entity data');
+          console.error('Failed to fetch or parse entity data');
         }
       } catch (error) {
         console.error('Error fetching entity data:', error);
       }
     };
-
+  
     fetchEntityData();
   }, []);
 
