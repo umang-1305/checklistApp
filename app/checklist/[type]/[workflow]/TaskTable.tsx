@@ -3,20 +3,14 @@ import { Input } from "@/app/components/ui/input";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
+import Combobox from "@/app/components/ui/combo-box";
+import { Info } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info, Trash2 } from "lucide-react";
 
 interface TaskRow {
   id: string;
@@ -167,23 +161,18 @@ export const TaskTable: React.FC<TaskTableProps> = ({
 
                   {/* Actions */}
                   <td className="p-2">
-                    <Select
+                    <Combobox
                       value={row.actions}
-                      onValueChange={(value) =>
+                      onSelect={(value) =>
                         handleTaskChange(rowIndex, "actions", value)
                       }
-                    >
-                      <SelectTrigger className="w-full border border-gray-300 rounded-md">
-                        <SelectValue placeholder="Select action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mainActorRows.map((actor, index) => (
-                          <SelectItem key={index} value={actor.actions}>
-                            {actor.actions}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={mainActorRows.map((actor) => ({
+                        value: actor.actions,
+                        label: actor.actions
+                      }))}
+                      placeholder="Select action"
+                      searchPlaceholder="Search actions..."
+                    />
                   </td>
 
                   {/* Remark */}
@@ -200,63 +189,55 @@ export const TaskTable: React.FC<TaskTableProps> = ({
 
                   {/* Entity Type */}
                   <td className="p-2">
-                    <Select
-                      value={row.entityType[0] || ""}
-                      onValueChange={(value) =>
-                        handleEntitySelection(rowIndex, "entityType", [value])
+                    <Combobox
+                      value={row.entityType[0] || null}
+                      onSelect={(value) =>
+                        handleEntitySelection(rowIndex, "entityType", value ? [value] : [])
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Entity Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {entityTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={entityTypes.map((type) => ({
+                        value: type.value,
+                        label: type.name
+                      }))}
+                      placeholder="Select Entity Type"
+                      searchPlaceholder="Search entity types..."
+                    />
                   </td>
 
                   {/* Entity Object */}
                   <td className="p-2">
-                    <Select
-                      value={row.entityObject[0] || ""}
-                      onValueChange={(value) =>
-                        handleEntitySelection(rowIndex, "entityObject", [value])
+                    <Combobox
+                      value={row.entityObject[0] || null}
+                      onSelect={(value) =>
+                        handleEntitySelection(rowIndex, "entityObject", value ? [value] : [])
                       }
-                      disabled={!row.entityType.length}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Entity Object" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {entityTypes
+                      options={
+                        entityTypes
                           .find((type) => type.value === row.entityType[0])
-                          ?.children?.map((obj) => (
-                            <SelectItem key={obj.value} value={obj.value}>
-                              {obj.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                          ?.children?.map((obj) => ({
+                            value: obj.value,
+                            label: obj.name
+                          })) || []
+                      }
+                      placeholder="Select Entity Object"
+                      searchPlaceholder="Search entity objects..."
+                      disabled={!row.entityType.length}
+                    />
                   </td>
 
+                  {/* Route */}
                   <td className="p-2">
-                    <Select
+                    <Combobox
                       value={row.route}
-                      onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
-                    >
-                      <SelectTrigger className="bg-white border border-gray-300">
-                        <SelectValue placeholder="Select route" />
-                      </SelectTrigger>
-                      <SelectContent className='bg-white'>
-                        <SelectItem value="/image">Image Verification</SelectItem>
-                        <SelectItem value="/invoice">Document Scan</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      onSelect={(value) => handleTaskChange(rowIndex, 'route', value)}
+                      options={[
+                        { value: "/image", label: "Image Verification" },
+                        { value: "/invoice", label: "Document Scan" }
+                      ]}
+                      placeholder="Select route"
+                      searchPlaceholder="Search routes..."
+                    />
                   </td>
+
                   {columns.filter(col => col.visible && col.type).map((column) => (
                     <td key={column.name} className="p-2">
                       <div className="flex flex-col space-y-2">
@@ -325,21 +306,16 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
     case 'select':
     case 'multi-select':
       return (
-        <Select
-          value={row[column.name] || ''}
-          onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
-        >
-          <SelectTrigger className="bg-white border border-gray-300">
-            <SelectValue placeholder={`Select ${column.name}`} />
-          </SelectTrigger>
-          <SelectContent>
-            {cellConfig.options?.map((option, optionIndex) => (
-              <SelectItem key={optionIndex} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={row[column.name] || null}
+          onSelect={(value) => handleTaskChange(rowIndex, column.name, value)}
+          options={(cellConfig.options || []).map((option) => ({
+            value: option,
+            label: option
+          }))}
+          placeholder={`Select ${column.name}`}
+          searchPlaceholder={`Search ${column.name.toLowerCase()}...`}
+        />
       );
     default:
       return null;

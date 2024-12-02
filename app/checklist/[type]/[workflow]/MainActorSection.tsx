@@ -1,12 +1,10 @@
-// app/checklist/[type]/[workflow]/MainActorSection.tsx
-
 import React from 'react';
 import { Input } from '@/app/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/app/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import Combobox from '@/app/components/ui/combo-box';
 
 interface MainActorRow {
   actions: string;
@@ -55,97 +53,64 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
             <div className="font-medium">Designation</div>
           </div>
           <Separator className="my-4" />
-          {mainActorRows.map((row, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-4 gap-4 items-center"
-            >
-              <Input
-                placeholder="Enter your Action"
-                value={row.actions}
-                onChange={(e) =>
-                  handleMainActorChange(index, 'actions', e.target.value)
-                }
-                className="bg-gray-50 text-gray-500 text-base"
-              />
-              <Select
-                value={row.mainActor || ''}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, 'mainActor', value || null)
-                }
-              >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                  <SelectValue placeholder="Select Actor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem key="realtime" value="realtime">
-                    Check on Realtime
-                  </SelectItem>
-                  {actorData.map((actor) => (
-                    <SelectItem
-                      key={actor.id}
-                      value={actor.Designated_Actor}
-                    >
-                      {actor.Designated_Actor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={row.mainActor?.toLowerCase() === 'realtime' ? '' : row.team || ''}
-                onValueChange={(value) =>
-                  handleMainActorChange(index, 'team', value || null)
-                }
-                disabled={row.mainActor?.toLowerCase() === 'realtime'}
-              >
-                <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                  <SelectValue placeholder="Select the team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(
-                    new Set(actorData.map((actor) => actor.field))
-                  ).map((field) => (
-                    <SelectItem key={field} value={field}>
-                      {field}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-row gap-x-3">
-                <Select
-                  value={row.mainActor?.toLowerCase() === 'realtime' ? '' : row.designation || ''}
-                  onValueChange={(value) =>
-                    handleMainActorChange(index, 'designation', value || null)
-                  }
-                  disabled={row.mainActor?.toLowerCase() === 'realtime'}
-                >
-                  <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                    <SelectValue placeholder="Select the Designation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from(
-                      new Set(
-                        actorData.map((actor) => actor.designation)
-                      )
-                    ).map((designation) => (
-                      <SelectItem key={designation} value={designation}>
-                        {designation}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => handleDelete(index)}
-                  variant="outline"
-                  size="icon"
-                  className="p-2"
-                >
-                  <Trash2 className="h-6 w-6" />
-                  <span className="sr-only">Delete row</span>
-                </Button>
-              </div>
-            </div>
-          ))}
+ {mainActorRows.map((row, index) => (
+  <div key={index} className="grid grid-cols-4 gap-4 items-center">
+    <Input
+      placeholder="Enter your Action"
+      value={row.actions}
+      onChange={(e) => handleMainActorChange(index, 'actions', e.target.value)}
+      className="bg-gray-50 text-gray-500 text-base"
+    />
+    
+    <Combobox
+      value={row.mainActor}
+      onSelect={(value) => {
+        handleMainActorChange(index, 'mainActor', value);
+        if (value === 'realtime') {
+          handleMainActorChange(index, 'team', null);
+          handleMainActorChange(index, 'designation', null);
+        }
+      }}
+      options={[
+        { value: 'realtime', label: 'Check on Realtime' },
+        ...actorData.map(actor => ({
+          value: actor.Designated_Actor,
+          label: actor.Designated_Actor
+        }))
+      ]}
+      placeholder="Select Actor"
+    />
+
+    <Combobox
+      value={row.team}
+      onSelect={(value) => handleMainActorChange(index, 'team', value)}
+      options={Array.from(new Set(actorData.map(actor => actor.field)))
+        .map(field => ({ value: field, label: field }))}
+      placeholder="Select the team"
+      disabled={row.mainActor?.toLowerCase() === 'realtime'}
+    />
+
+    <div className="flex flex-row gap-x-3">
+      <Combobox
+        value={row.designation}
+        onSelect={(value) => handleMainActorChange(index, 'designation', value)}
+        options={Array.from(new Set(actorData.map(actor => actor.designation)))
+          .map(designation => ({ value: designation, label: designation }))}
+        placeholder="Select the Designation"
+        disabled={row.mainActor?.toLowerCase() === 'realtime'}
+      />
+      <Button
+        onClick={() => handleDelete(index)}
+        variant="outline"
+        size="icon"
+        className="p-2"
+      >
+        <Trash2 className="h-6 w-6" />
+        <span className="sr-only">Delete row</span>
+      </Button>
+    </div>
+  </div>
+))}
           <Button
             variant="ghost"
             className="flex items-center gap-2 text-base p-6 text-[#4285F4] hover:text-[#4285F4] bg-[#EAF2FF] hover:bg-[#EAF2FF]/60 mt-5"
