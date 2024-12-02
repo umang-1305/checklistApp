@@ -99,7 +99,9 @@ export default function Checklist() {
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
-// Update the initial columns state
+
+  
+
 const [columns, setColumns] = useState<Column[]>([
   { name: 'Task Number', visible: true },
   { name: 'Task Name', visible: true },
@@ -416,28 +418,64 @@ const [columns, setColumns] = useState<Column[]>([
       setNewColumnName('');
     }
   };
-
+   
   // Function to open the field type dialog
   const openFieldTypeDialog = (rowIndex: number, columnName: string) => {
+    console.log(rowIndex,columnName, 'hit')
     setEditingCell({ rowIndex, columnName });
     setIsFieldTypeDialogOpen(true);
   };
 
   // Function to save cell configuration
-  const handleCellConfigSave = (config: CellConfig) => {
-    if (editingCell) {
-      const updatedTaskRows = [...taskRows];
-      if (!updatedTaskRows[editingCell.rowIndex].cellConfigs) {
-        updatedTaskRows[editingCell.rowIndex].cellConfigs = {};
-      }
-      updatedTaskRows[editingCell.rowIndex].cellConfigs![
-        editingCell.columnName
-      ] = config;
-      setTaskRows(updatedTaskRows);
+const handleCellConfigSave = (config: CellConfig) => {
+  if (editingCell) {
+    const updatedTaskRows = [...taskRows];
+    const rowIndex = editingCell.rowIndex;
+    const columnName = editingCell.columnName;
+
+    // Ensure config always has a type
+    const validConfig = {
+      type: config.type || 'text', // Default to 'text' if no type is provided
+      ...(config.options && { options: config.options })
+    };
+
+    // Initialize cellConfigs if it doesn't exist
+    if (!updatedTaskRows[rowIndex].cellConfigs) {
+      updatedTaskRows[rowIndex].cellConfigs = {};
     }
-    setIsFieldTypeDialogOpen(false);
-    setEditingCell(null);
-  };
+
+    // Save the configuration
+    updatedTaskRows[rowIndex].cellConfigs![columnName] = validConfig;
+
+    // If the configuration changes the type, reset the column value
+    updatedTaskRows[rowIndex][columnName] = getDefaultValueForType(validConfig.type);
+
+    setTaskRows(updatedTaskRows);
+
+    // Update columns array to reflect the new type
+    setColumns(prevColumns => 
+      prevColumns.map(col => 
+        col.name === columnName 
+          ? { ...col, type: validConfig.type, options: validConfig.options }
+          : col
+      )
+    );
+  }
+  
+  setIsFieldTypeDialogOpen(false);
+  setEditingCell(null);
+};
+
+function getDefaultValueForType(type: string) {
+  switch(type) {
+    case 'text': return '';
+    case 'number': return '';
+    case 'checkbox': return false;
+    case 'select': return '';
+    case 'multi-select': return [];
+    default: return '';
+  }
+}
 
   // Function to delete a main actor row
   const handleDelete = (index: number) => {
@@ -661,7 +699,9 @@ const [columns, setColumns] = useState<Column[]>([
         handleEntitySelection={handleEntitySelection}
         handleAddTaskRow={handleAddTaskRow}
         setIsColumnDialogOpen={setIsColumnDialogOpen}
-
+        handleDelete={handleDelete}
+        setIsFieldTypeDialogOpen={setIsFieldTypeDialogOpen}
+        handleCellConfigSave={handleCellConfigSave}
       />
 
       {/* Configure Columns Dialog */}

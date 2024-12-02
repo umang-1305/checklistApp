@@ -16,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Info, Trash2 } from "lucide-react";
 
 interface TaskRow {
   id: string;
@@ -69,6 +69,7 @@ interface TaskTableProps {
   ) => void;
   handleAddTaskRow: () => void;
   setIsColumnDialogOpen: (open: boolean) => void;
+  setIsFieldTypeDialogOpen: (rowIndex: number, columnName: string) => void;
 }
 
 export const TaskTable: React.FC<TaskTableProps> = ({
@@ -79,7 +80,8 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   handleTaskChange,
   handleEntitySelection,
   handleAddTaskRow,
-  setIsColumnDialogOpen
+  setIsColumnDialogOpen,
+  setIsFieldTypeDialogOpen
 }) => {
   return (
     <Card className="p-6">
@@ -241,18 +243,36 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     </Select>
                   </td>
 
-                  {/* Route */}
-                   <td className="p-2">
-                    <select
+                  <td className="p-2">
+                    <Select
                       value={row.route}
-                      onChange={(e) => handleTaskChange(rowIndex, "route", e.target.value)}
-                      className="w-full bg-gray-50 text-gray-500 rounded-md"
+                      onValueChange={(value) => handleTaskChange(rowIndex, 'route', value)}
                     >
-                      <option value="">Select Route</option>
-                      <option value="/image">Image Verification</option>
-                      <option value="/invoice">Document Scan</option>
-                    </select>
+                      <SelectTrigger className="bg-white border border-gray-300">
+                        <SelectValue placeholder="Select route" />
+                      </SelectTrigger>
+                      <SelectContent className='bg-white'>
+                        <SelectItem value="/image">Image Verification</SelectItem>
+                        <SelectItem value="/invoice">Document Scan</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
+                  {columns.filter(col => col.visible && col.type).map((column) => (
+                    <td key={column.name} className="p-2">
+                      <div className="flex flex-col space-y-2">
+                        {renderCellInput(row, rowIndex, column, handleTaskChange)}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+                          onClick={() => setIsFieldTypeDialogOpen(rowIndex, column.name)}
+                        >
+                          Set Field Type
+                        </Button>
+                      </div>
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -272,3 +292,56 @@ export const TaskTable: React.FC<TaskTableProps> = ({
     </Card>
   );
 };
+
+function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, field: keyof TaskRow | string, value: any) => void) {
+  const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
+  if(!cellConfig.type) return null;
+  switch (cellConfig.type) {
+    case 'text':
+      return (
+        <Input
+          value={row[column.name] || ''}
+          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          className="bg-gray-50"
+        />
+      );
+    case 'number':
+      return (
+        <Input
+          type="number"
+          value={row[column.name] || ''}
+          onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
+          className="bg-gray-50"
+        />
+      );
+    case 'checkbox':
+      return (
+        <Checkbox
+          checked={row[column.name] || false}
+          onCheckedChange={(checked) => handleTaskChange(rowIndex, column.name, checked)}
+          className="border-2 border-gray-300 rounded-sm"
+        />
+      );
+    case 'select':
+    case 'multi-select':
+      return (
+        <Select
+          value={row[column.name] || ''}
+          onValueChange={(value) => handleTaskChange(rowIndex, column.name, value)}
+        >
+          <SelectTrigger className="bg-white border border-gray-300">
+            <SelectValue placeholder={`Select ${column.name}`} />
+          </SelectTrigger>
+          <SelectContent>
+            {cellConfig.options?.map((option, optionIndex) => (
+              <SelectItem key={optionIndex} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    default:
+      return null;
+  }
+}

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { MultiSelectPreview } from '../components/ui/multi-select-preview'
 import { Button } from "@/app/components/ui/button"
 import { Checkbox } from "@/app/components/ui/checkbox"
 import { Input } from "@/app/components/ui/input"
@@ -525,10 +526,20 @@ export default function Checklist({ type }: ChecklistProps) {
   )
 }
 
-function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
-  const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
-  console.log(cellConfig.type)
-  if(!cellConfig.type) return null;
+function renderCellInput(
+  row: TaskRow, 
+  rowIndex: number, 
+  column: Column, 
+  handleTaskChange: (rowIndex: number, field: keyof TaskRow | string, value: any) => void
+) {
+  // Prioritize row-specific cell configuration
+  const cellConfig = row.cellConfigs?.[column.name] || { 
+    type: column.type, 
+    options: column.options 
+  };
+
+  if (!cellConfig.type) return null;
+
   switch (cellConfig.type) {
     case 'text':
       return (
@@ -536,6 +547,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
           value={row[column.name] || ''}
           onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
           className="bg-gray-50"
+          placeholder={`Enter ${column.name}`}
         />
       );
     case 'number':
@@ -545,6 +557,7 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
           value={row[column.name] || ''}
           onChange={(e) => handleTaskChange(rowIndex, column.name, e.target.value)}
           className="bg-gray-50"
+          placeholder={`Enter ${column.name}`}
         />
       );
     case 'checkbox':
@@ -556,7 +569,6 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
         />
       );
     case 'select':
-    case 'multi-select':
       return (
         <Select
           value={row[column.name] || ''}
@@ -574,8 +586,15 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column) {
           </SelectContent>
         </Select>
       );
+    case 'multi-select':
+      return (
+        <MultiSelectPreview 
+          selected={row[column.name] || []}
+          options={cellConfig.options || []}
+          onChange={(selected) => handleTaskChange(rowIndex, column.name, selected)}
+        />
+      );
     default:
       return null;
   }
 }
-
