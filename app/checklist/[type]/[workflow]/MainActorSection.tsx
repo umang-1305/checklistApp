@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Input } from '@/app/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/app/components/ui/button';
 import { Trash2 } from 'lucide-react';
@@ -10,9 +10,9 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface MainActorRow {
   actions: string;
-  mainActor: string;
-  team: string;
-  designation: string;
+  mainActor: string | null;
+  team: string | null;
+  designation: string | null;
   id: string;
   person: string;
 }
@@ -32,7 +32,7 @@ interface MainActorSectionProps {
   handleMainActorChange: (
     index: number,
     field: keyof MainActorRow,
-    value: string
+    value: string | null
   ) => void;
   handleDelete: (index: number) => void;
 }
@@ -69,9 +69,9 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
                 className="bg-gray-50 text-gray-500 text-base"
               />
               <Select
-                value={row.mainActor}
+                value={row.mainActor || ''}
                 onValueChange={(value) =>
-                  handleMainActorChange(index, 'mainActor', value)
+                  handleMainActorChange(index, 'mainActor', value || null)
                 }
               >
                 <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
@@ -92,13 +92,11 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
                 </SelectContent>
               </Select>
               <Select
-                value={
-                  row.mainActor.toLowerCase() === 'realtime' ? '' : row.team
-                }
+                value={row.mainActor?.toLowerCase() === 'realtime' ? '' : row.team || ''}
                 onValueChange={(value) =>
-                  handleMainActorChange(index, 'team', value)
+                  handleMainActorChange(index, 'team', value || null)
                 }
-                disabled={row.mainActor.toLowerCase() === 'realtime'}
+                disabled={row.mainActor?.toLowerCase() === 'realtime'}
               >
                 <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                   <SelectValue placeholder="Select the team" />
@@ -115,15 +113,11 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
               </Select>
               <div className="flex flex-row gap-x-3">
                 <Select
-                  value={
-                    row.mainActor.toLowerCase() === 'realtime'
-                      ? ''
-                      : row.designation
-                  }
+                  value={row.mainActor?.toLowerCase() === 'realtime' ? '' : row.designation || ''}
                   onValueChange={(value) =>
-                    handleMainActorChange(index, 'designation', value)
+                    handleMainActorChange(index, 'designation', value || null)
                   }
-                  disabled={row.mainActor.toLowerCase() === 'realtime'}
+                  disabled={row.mainActor?.toLowerCase() === 'realtime'}
                 >
                   <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
                     <SelectValue placeholder="Select the Designation" />

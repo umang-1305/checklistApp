@@ -660,6 +660,8 @@ const [columns, setColumns] = useState<Column[]>([
         openFieldTypeDialog={openFieldTypeDialog}
         handleEntitySelection={handleEntitySelection}
         handleAddTaskRow={handleAddTaskRow}
+        setIsColumnDialogOpen={setIsColumnDialogOpen}
+
       />
 
       {/* Configure Columns Dialog */}
