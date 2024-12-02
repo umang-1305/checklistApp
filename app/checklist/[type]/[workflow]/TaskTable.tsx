@@ -1,18 +1,22 @@
-import React from 'react';
-import { Input } from '@/app/components/ui/input';
-import { Checkbox } from '@/app/components/ui/checkbox';
-import { Button } from '@/app/components/ui/button';
-import { Card } from '@/components/ui/card';
+import React from "react";
+import { Input } from "@/app/components/ui/input";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { Button } from "@/app/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/app/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
-import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview';
+} from "@/app/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface TaskRow {
   id: string;
@@ -60,7 +64,7 @@ interface TaskTableProps {
   ) => void;
   handleEntitySelection: (
     rowIndex: number,
-    field: 'entityType' | 'entityObject',
+    field: "entityType" | "entityObject",
     updatedValues: string[]
   ) => void;
   handleAddTaskRow: () => void;
@@ -81,15 +85,15 @@ export const TaskTable: React.FC<TaskTableProps> = ({
         <div className="flex justify-between items-start text-sm">
           <div>
             <p className="text-gray-500 mb-1 text-lg">
-              The below columns are{' '}
-              <span className="font-bold text-black">designed for you</span> to{' '}
+              The below columns are{" "}
+              <span className="font-bold text-black">designed for you</span> to{" "}
               <span className="font-bold text-black">
                 decide what aspects you want your team to include
-              </span>{' '}
+              </span>{" "}
               while carrying out their work.
             </p>
             <p className="text-gray-500 mb-1 text-lg">
-              <span className="font-bold text-black">Unattended Column</span>{' '}
+              <span className="font-bold text-black">Unattended Column</span>{" "}
               means that it will not be shown in the application.
             </p>
           </div>
@@ -114,7 +118,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         {column.name}
-                        {column.name !== 'Task Number' && (
+                        {column.name !== "Task Number" && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -150,7 +154,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       placeholder="Enter Task name"
                       value={row.taskName}
                       onChange={(e) =>
-                        handleTaskChange(rowIndex, 'taskName', e.target.value)
+                        handleTaskChange(rowIndex, "taskName", e.target.value)
                       }
                       className="w-full bg-gray-50 text-gray-500 rounded-md"
                     />
@@ -161,7 +165,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     <Select
                       value={row.actions}
                       onValueChange={(value) =>
-                        handleTaskChange(rowIndex, 'actions', value)
+                        handleTaskChange(rowIndex, "actions", value)
                       }
                     >
                       <SelectTrigger className="w-full border border-gray-300 rounded-md">
@@ -182,7 +186,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     <Checkbox
                       checked={row.remark || false}
                       onCheckedChange={(checked) =>
-                        handleTaskChange(rowIndex, 'remark', checked)
+                        handleTaskChange(rowIndex, "remark", checked)
                       }
                       className="border border-gray-300 rounded-md"
                     />
@@ -191,16 +195,12 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   {/* Entity Type */}
                   <td className="p-2">
                     <Select
-                      value={row.entityType.join(', ') || ''}
+                      value={row.entityType[0] || ""}
                       onValueChange={(value) =>
-                        handleEntitySelection(
-                          rowIndex,
-                          'entityType',
-                          Array.isArray(value) ? value : [value]
-                        )
+                        handleEntitySelection(rowIndex, "entityType", [value])
                       }
                     >
-                      <SelectTrigger className="w-full border border-gray-300 rounded-md">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select Entity Type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -216,26 +216,23 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   {/* Entity Object */}
                   <td className="p-2">
                     <Select
-                      value={row.entityObject.join(', ') || ''}
+                      value={row.entityObject[0] || ""}
                       onValueChange={(value) =>
-                        handleEntitySelection(
-                          rowIndex,
-                          'entityObject',
-                          Array.isArray(value) ? value : [value]
-                        )
+                        handleEntitySelection(rowIndex, "entityObject", [value])
                       }
+                      disabled={!row.entityType.length}
                     >
-                      <SelectTrigger className="w-full border border-gray-300 rounded-md">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select Entity Object" />
                       </SelectTrigger>
                       <SelectContent>
-                        {entityTypes.flatMap((type) => type.children || []).map(
-                          (child) => (
-                            <SelectItem key={child.value} value={child.value}>
-                              {child.name}
+                        {entityTypes
+                          .find((type) => type.value === row.entityType[0])
+                          ?.children?.map((obj) => (
+                            <SelectItem key={obj.value} value={obj.value}>
+                              {obj.name}
                             </SelectItem>
-                          )
-                        )}
+                          ))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -246,7 +243,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       placeholder="Enter Route"
                       value={row.route}
                       onChange={(e) =>
-                        handleTaskChange(rowIndex, 'route', e.target.value)
+                        handleTaskChange(rowIndex, "route", e.target.value)
                       }
                       className="w-full bg-gray-50 text-gray-500 rounded-md"
                     />
@@ -256,40 +253,6 @@ export const TaskTable: React.FC<TaskTableProps> = ({
             </tbody>
           </table>
         </div>
-        <Select
-  value={row.entityType[0] || ''}
-  onValueChange={(value) => handleEntityTypeChange(rowIndex, value)}
->
-  <SelectTrigger>
-    <SelectValue placeholder="Select Entity Type" />
-  </SelectTrigger>
-  <SelectContent>
-    {entityTypes.map((type) => (
-      <SelectItem key={type.value} value={type.value}>
-        {type.name}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-
-<Select
-  value={row.entityObject[0] || ''}
-  onValueChange={(value) => handleEntityObjectChange(rowIndex, value)}
-  disabled={!row.entityType.length}
->
-  <SelectTrigger>
-    <SelectValue placeholder="Select Entity Object" />
-  </SelectTrigger>
-  <SelectContent>
-    {entityTypes
-      .find((type) => type.value === row.entityType[0])
-      ?.children?.map((obj) => (
-        <SelectItem key={obj.value} value={obj.value}>
-          {obj.name}
-        </SelectItem>
-      ))}
-  </SelectContent>
-</Select>
 
         {/* Add Row Button */}
         <Button

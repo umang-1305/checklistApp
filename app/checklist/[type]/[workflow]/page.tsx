@@ -155,16 +155,17 @@ const [columns, setColumns] = useState<Column[]>([
         }
   
         const data = await response.json();
+        console.log('Entity API Response:', data); // Debug log to check response structure
   
         if (data.status === 'success' && data.data.entities) {
-          // Process the entities into a suitable format for `entityData`
+          // Safely process the data
           const processedEntityData = Object.keys(data.data.entities).reduce(
             (acc, entityTypeKey) => {
               acc[entityTypeKey] = Object.entries(data.data.entities[entityTypeKey]).reduce(
                 (childAcc, [entityObjectKey, entityObjectValue]) => {
                   childAcc[entityObjectKey] = {
-                    name: entityObjectValue.name,
-                    ID: entityObjectValue.ID,
+                    name: entityObjectValue.name || '',
+                    ID: entityObjectValue.ID || '',
                   };
                   return childAcc;
                 },
@@ -175,9 +176,10 @@ const [columns, setColumns] = useState<Column[]>([
             {}
           );
   
-          setEntityData(processedEntityData); // Update state correctly
+          setEntityData(processedEntityData); // Update the state
+          console.log('Processed Entity Data:', processedEntityData); // Debug log
         } else {
-          console.error('Failed to fetch or parse entity data');
+          console.error('Invalid entity data structure', data);
         }
       } catch (error) {
         console.error('Error fetching entity data:', error);
@@ -186,7 +188,9 @@ const [columns, setColumns] = useState<Column[]>([
   
     fetchEntityData();
   }, [workflow, step]);
-      // Fetching workflow data based on 'step' and 'workflow' parameters
+  console.log('Workflow:', workflow, 'Step:', step);
+
+        // Fetching workflow data based on 'step' and 'workflow' parameters
   useEffect(() => {
     if (type && workflow && step) {
       const fetchStepData = async () => {
