@@ -148,6 +148,7 @@ const [columns, setColumns] = useState<Column[]>([
   // Fetching entity data when the component mounts
   useEffect(() => {
     const fetchEntityData = async () => {
+      
       try {
         const response = await fetch(
           `https://admin-backend-85801868683.us-central1.run.app/Workflows/${workflow}/entity/${step}`
@@ -158,7 +159,8 @@ const [columns, setColumns] = useState<Column[]>([
   
         const data = await response.json();
         console.log('Entity API Response:', data); // Debug log to check response structure
-  
+        console.log('Fetched Entity Data:', JSON.stringify(data, null, 2));
+
         if (data.status === 'success' && data.data.entities) {
           // Safely process the data
           const processedEntityData = Object.keys(data.data.entities).reduce(
@@ -275,29 +277,24 @@ const [columns, setColumns] = useState<Column[]>([
 
   // Processing entity types for use in select components
   const entityTypes: EntityType[] = useMemo(() => {
-    return Object.entries(entityData).map(([key, value]) => {
-      const children = Object.entries(value)
-        .filter(
-          ([childKey]) =>
-            childKey !== 'id' && typeof value[childKey] === 'object'
-        )
-        .map(([childKey, childValue]) => ({
-          name: (childValue as { Name?: string })?.Name || childKey,
-          value: (
-            (childValue as { Name?: string })?.Name || childKey
-          )
-            .toLowerCase()
-            .replace(/\s+/g, '_'),
-        }));
-
+    return Object.keys(entityData).map((key) => {
+      const value = entityData[key];
+      const children = Object.keys(value).map((childKey) => {
+        const childValue = value[childKey];
+        return {
+          name: childValue.name || childKey,
+          value: childKey,
+        };
+      });
+  
       return {
-        name: value.id || key,
-        value: (value.id || key).toLowerCase().replace(/\s+/g, '_'),
+        name: key,
+        value: key,
         children: children,
       };
     });
   }, [entityData]);
-
+  
   // Function to add a new main actor row
   const handleAddMainActorRow = () => {
     setMainActorRows([
@@ -368,26 +365,31 @@ const [columns, setColumns] = useState<Column[]>([
   const handleEntityTypeChange = (rowIndex: number, updatedEntityType: string) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
-      newRows[rowIndex].entityType = [updatedEntityType]; // Single entity type for now
-      newRows[rowIndex].entityObject = []; // Clear entity object when entity type changes
+      // Normalize the entityType to match keys in entityData
+      const normalizedEntityType = updatedEntityType.trim();
+      newRows[rowIndex].entityType = [normalizedEntityType];
+      newRows[rowIndex].entityObject = [];
       return newRows;
     });
   };
+  
   const handleEntitySelection = (
     rowIndex: number,
-    field: "entityType" | "entityObject",
+    field: 'entityType' | 'entityObject',
     updatedValues: string[]
   ) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
+      // Normalize values to match keys
+      const normalizedValues = updatedValues.map((val) => val.trim());
       newRows[rowIndex] = {
         ...newRows[rowIndex],
-        [field]: updatedValues,
+        [field]: normalizedValues,
       };
       return newRows;
     });
   };
-
+    
   const handleEntityObjectChange = (rowIndex: number, updatedEntityObject: string) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
@@ -491,118 +493,88 @@ function getDefaultValueForType(type: string) {
 
   // Function to publish changes
   const publishChanges = useCallback(async () => {
-    // Ensure entityObject is populated when entityType is selected
     const updatedTaskRows = taskRows.map((taskRow) => {
-      if (taskRow.entityType.length > 0 && taskRow.entityObject.length === 0) {
-        // Get all entity objects associated with the selected entity types
-        const entityObjectsForType = taskRow.entityType.flatMap((entityType) => {
-          const entityObjects = entityData[entityType]; // Retrieve from entityData
-          return entityObjects ? Object.keys(entityObjects) : [];
-        });
+      let entityObjects = {};
   
-        return {
-          ...taskRow,
-          entityObject: entityObjectsForType, // Add associated entity objects
-        };
+      if (taskRow.entityType.length > 0) {
+        taskRow.entityType.forEach((entityType) => {
+          // Normalize entityType to match the keys in entityData
+          const normalizedEntityType = entityType.trim();
+          const objectsForType = entityData[normalizedEntityType];
+  
+          if (objectsForType) {
+            if (taskRow.entityObject.length > 0) {
+              // Specific objects selected
+              taskRow.entityObject.forEach((objName) => {
+                const normalizedObjName = objName.trim();
+                const objData = objectsForType[normalizedObjName];
+                if (objData) {
+                  entityObjects[normalizedObjName] = {
+                    ID: objData.ID || '',
+                    name: objData.name || normalizedObjName,
+                  };
+                }
+              });
+            } else {
+              // No specific objects selected, include all for the type
+              Object.keys(objectsForType).forEach((objName) => {
+                const objData = objectsForType[objName];
+                if (objData) {
+                  entityObjects[objName] = {
+                    ID: objData.ID || '',
+                    name: objData.name || objName,
+                  };
+                }
+              });
+            }
+          } else {
+            console.warn(`Entity Type "${normalizedEntityType}" not found in entityData.`);
+          }
+        });
       }
-      return taskRow;
+  
+      return { ...taskRow, entityObjects };
     });
   
-    // Construct actors
-    const actors = mainActorRows.reduce((acc, actor, index) => {
-      acc[`actor${index + 1}`] = {
-        action: actor.actions || ' ',
-        date: new Date().toUTCString(),
-        designation: actor.designation || ' ',
-        inspected:'false',
-        name: actor.mainActor || ' ',
-        team: actor.team || ' ',
-      };
-      return acc;
-    }, {} as Record<string, any>);
-  
-    // Construct tasks
-    const tasks = updatedTaskRows.reduce((acc, task, index) => {
-      const taskKey = `task${index + 1}`;
-  
-      const actions = mainActorRows.reduce((actionsAcc, actor, actorIndex) => {
-        if (task.actions === actor.actions) {
-          actionsAcc[`action${actorIndex + 1}`] = {
-            actionType: actor.actions || ' ',
-            actor: actor.mainActor || ' ',
-            isSigned: false,
-          };
-        }
-        return actionsAcc;
-      }, {} as Record<string, any>);
-  
-      const entityObjects = task.entityType.reduce((entityAcc, entityType) => {
-        task.entityObject.forEach((entityObjName) => {
-          entityAcc[entityObjName] = {
-            customInput: {
-              input: true,
-              inputText: ' ',
-            },
-            entityType: entityType || ' ',
-          };
-        });
-        return entityAcc;
-      }, {} as Record<string, any>);
-  
-      acc[taskKey] = {
-        actions,
-        entityObjects,
-        remark: {
-          input: task.remark,
-          remarkText: ' ',
-          showRemark: task.remark,
-        },
-        route: task.route || ' ',
-        taskLabel: task.taskName || ' ',
-      };
-  
-      return acc;
-    }, {} as Record<string, any>);
-  
-    // Construct entities
-    const entities = updatedTaskRows.reduce((acc, task) => {
-      task.entityType.forEach((entityType) => {
-        if (!acc[entityType]) {
-          acc[entityType] = {};
-        }
-        task.entityObject.forEach((entityObjName) => {
-          const entityObjData = entityData[entityType]?.[entityObjName];
-          acc[entityType][entityObjName] = {
-            ID: entityObjData?.ID,
-            name: entityObjData?.name ,
-          };
-        });
-      });
-      return acc;
-    }, {} as Record<string, any>);
+    console.log('Updated Task Rows Before Payload:', JSON.stringify(updatedTaskRows, null, 2));
   
     const payload = {
       [step]: {
-        actors,
-        entities,
+        actors: mainActorRows.reduce((acc, actor, index) => {
+          acc[`actor${index + 1}`] = {
+            action: actor.actions || ' ',
+            date: new Date().toUTCString(),
+            designation: actor.designation || ' ',
+            inspected: 'false',
+            name: actor.mainActor || ' ',
+            team: actor.team || ' ',
+          };
+          return acc;
+        }, {}),
+        tasks: updatedTaskRows.reduce((acc, task, index) => {
+          acc[`task${index + 1}`] = {
+            actions: {},
+            entityObjects: task.entityObjects || {},
+            remark: {
+              input: task.remark,
+              remarkText: ' ',
+              showRemark: task.remark,
+            },
+            route: task.route || ' ',
+            taskLabel: task.taskName || ' ',
+          };
+          return acc;
+        }, {}),
         name: `${type} Checklist`,
         stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
-        tasks,
       },
     };
   
-    if (Object.keys(tasks).length === 0) {
-      toast({
-        title: 'Error publishing changes',
-        description: 'Please add at least one valid task before publishing.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    console.log('Final Payload to Send:', JSON.stringify(payload, null, 2));
   
     try {
       const response = await fetch(
-        `https://admin-backend-85801868683.us-central1.run.app/Workflows/update/${workflow}`,
+        `https://admin-backend-85801868683.us-central1.run.app/Workflows/update_old/${workflow}`,
         {
           method: 'POST',
           headers: {
@@ -617,26 +589,23 @@ function getDefaultValueForType(type: string) {
         throw new Error(errorData.message || 'Network response was not ok');
       }
   
+      const responseData = await response.json();
+      console.log('API Response:', JSON.stringify(responseData, null, 2));
+  
       toast({
         title: 'Changes published successfully',
         description: 'Your changes have been saved and published.',
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error Response from API:', error);
       toast({
         title: 'Error publishing changes',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'There was a problem publishing your changes. Please try again.',
+        description: error.message || 'There was a problem publishing your changes.',
         variant: 'destructive',
       });
     }
-  }, [type, taskRows, mainActorRows, columns, workflow, step, entityData]);
-      
-  
-  
-
+  }, [type, taskRows, mainActorRows, workflow, step, entityData]);
+    
   if (loading) {
     return <div>Loading...</div>;
   }
