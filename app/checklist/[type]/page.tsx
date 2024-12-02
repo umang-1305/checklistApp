@@ -160,23 +160,31 @@ export default function Checklist({ params }: ChecklistProps) {
   useEffect(() => {
     const fetchEntityData = async () => {
       try {
-        const response = await fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Entities');
+        const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/Workflow14/entity/step1');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        if (data.status === 'success') {
-          setEntityData(data.data);
+  
+        if (data.status === 'success' && data.data.entities?.equipment) {
+          // Extract and map `equipment` data
+          const equipmentData = data.data.entities.equipment;
+          const mappedEntityTypes = Object.keys(equipmentData).map((key) => ({
+            name: equipmentData[key].name,
+            value: key.toLowerCase() // Assuming you want keys like `RMG_1` as values
+          }));
+          setEntityData(mappedEntityTypes);
         } else {
-          console.error('Failed to fetch entity data');
+          console.error('Failed to fetch or parse entity data');
         }
       } catch (error) {
         console.error('Error fetching entity data:', error);
       }
     };
-
+  
     fetchEntityData();
   }, []);
+  
 
   useEffect(() => {
     const fetchData = async () => {
@@ -193,7 +201,7 @@ export default function Checklist({ params }: ChecklistProps) {
       try {
         const [workflowResponse, entityResponse] = await Promise.all([
           fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Workflows/Workflow14'),
-          fetch(`https://admin-backend-85801868683.us-central1.run.app/Workflows/Workflow14/entity/${step}`)
+          fetch(`https://admin-backend-85801868683.us-central1.run.app/Workflows/Workflow14/entity/step1`)
         ]);
 
         if (!workflowResponse.ok || !entityResponse.ok) {
@@ -249,15 +257,20 @@ export default function Checklist({ params }: ChecklistProps) {
     }));
     setTaskRows(taskRows);
 
-    // Update entity types
-    const newEntityTypes = Object.entries(entityData).map(([key, value]: [string, any]) => ({
-      name: key,
-      value: key.toLowerCase(),
-      children: Object.entries(value).map(([childKey, childValue]: [string, any]) => ({
-        name: childValue.name,
-        value: childKey.toLowerCase(),
-      }))
-    }));
+    //Update entity types
+    const newEntityTypes = useMemo(() => {
+      if (!entityData) return [];
+    
+      return Object.entries(entityData).map(([key, value]: [string, any]) => ({
+        name: key,
+        value: key.toLowerCase(),
+        children: Object.entries(value).map(([childKey, childValue]: [string, any]) => ({
+          name: childValue.name,
+          value: childKey.toLowerCase(),
+        })),
+      }));
+    }, [entityData]);
+    
     setEntityTypes(newEntityTypes);
   };
 
@@ -700,103 +713,78 @@ export default function Checklist({ params }: ChecklistProps) {
                     </td>
                     <td className="p-2">
                     <Select
-                      value={row.entityType.join(',')}
-                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                    >
-                      <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                        <SelectValue placeholder="Select Entity Type">
-                          <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => (
-                          <React.Fragment key={parent.value}>
-                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
-                              <Checkbox
-                                checked={parent.children?.every((child) => row.entityType.includes(child.value))}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleEntityTypeChange(
-                                    rowIndex,
-                                    isChecked
-                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                      : row.entityType.filter((type) => !parent.children?.some((child) => child.value === type))
-                                  );
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="font-medium">{parent.name}</span>
-                            </div>
-                            {parent.children?.map((child) => (
-                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
-                                <Checkbox
-                                  checked={row.entityType.includes(child.value)}
-                                  onCheckedChange={(checked) => {
-                                    const isChecked = checked === true;
-                                    const updatedEntityTypes = isChecked
-                                      ? [...row.entityType, child.value]
-                                      : row.entityType.filter((type) => type !== child.value);
-                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                  }}
-                                  className="mr-2"
-                                />
-                                <span>{child.name}</span>
-                              </div>
-                            ))}
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
+  value={row.entityType.join(', ')}
+  onValueChange={(value) =>
+    handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])
+  }
+>
+  <SelectTrigger className="border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white text-gray-500">
+    <SelectValue placeholder="Select Entity Type">
+      <MultiSelectPreview selected={row.entityType} entityTypes={entityData} />
+    </SelectValue>
+  </SelectTrigger>
+  <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
+    {Object.entries(entityData).map(([key, value]) => (
+      <div
+        key={key} // Use the key as the unique identifier
+        className="flex items-center px-2 py-1 hover:bg-gray-100"
+      >
+        <Checkbox
+          checked={row.entityType.includes(key)}
+          onCheckedChange={(checked) => {
+            const isChecked = checked === true;
+            const updatedEntityTypes = isChecked
+              ? [...row.entityType, key]
+              : row.entityType.filter((type) => type !== key);
+            handleEntityTypeChange(rowIndex, updatedEntityTypes);
+          }}
+          className="mr-2"
+        />
+        <span className="font-medium">{value.name || key}</span> {/* Display name or key */}
+      </div>
+    ))}
+  </SelectContent>
+</Select>
+
+
+
+
                     </td>
                     <td className="p-2">
                     <Select
-                      value={row.entityType.join(',')}
-                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                    >
-                      <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                        <SelectValue placeholder="Select Entity Object">
-                          <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => (
-                          <React.Fragment key={parent.value}>
-                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
-                              <Checkbox
-                                checked={parent.children?.every((child) => row.entityType.includes(child.value))}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleEntityTypeChange(
-                                    rowIndex,
-                                    isChecked
-                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                      : row.entityType.filter((type) => !parent.children?.some((child) => child.value === type))
-                                  );
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="font-medium">{parent.name}</span>
-                            </div>
-                            {parent.children?.map((child) => (
-                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
-                                <Checkbox
-                                  checked={row.entityType.includes(child.value)}
-                                  onCheckedChange={(checked) => {
-                                    const isChecked = checked === true;
-                                    const updatedEntityTypes = isChecked
-                                      ? [...row.entityType, child.value]
-                                      : row.entityType.filter((type) => type !== child.value);
-                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                  }}
-                                  className="mr-2"
-                                />
-                                <span>{child.name}</span>
-                              </div>
-                            ))}
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
+  value={row.entityType.join(', ')}
+  onValueChange={(value) =>
+    handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])
+  }
+>
+  <SelectTrigger className="border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white text-gray-500">
+    <SelectValue placeholder="Select Entity Type">
+      <MultiSelectPreview selected={row.entityType} entityTypes={entityData} />
+    </SelectValue>
+  </SelectTrigger>
+  <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
+    {Object.entries(entityData).map(([key, value]) => (
+      <div
+        key={key} // Use the key as the unique identifier
+        className="flex items-center px-2 py-1 hover:bg-gray-100"
+      >
+        <Checkbox
+          checked={row.entityType.includes(key)}
+          onCheckedChange={(checked) => {
+            const isChecked = checked === true;
+            const updatedEntityTypes = isChecked
+              ? [...row.entityType, key]
+              : row.entityType.filter((type) => type !== key);
+            handleEntityTypeChange(rowIndex, updatedEntityTypes);
+          }}
+          className="mr-2"
+        />
+        <span className="font-medium">{value.name || key}</span> {/* Display name or key */}
+      </div>
+    ))}
+  </SelectContent>
+</Select>
+
                     </td>
                     <td className="p-2">
                       <Select
