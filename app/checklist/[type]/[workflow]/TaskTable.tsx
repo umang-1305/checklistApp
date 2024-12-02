@@ -68,6 +68,7 @@ interface TaskTableProps {
     updatedValues: string[]
   ) => void;
   handleAddTaskRow: () => void;
+  setIsColumnDialogOpen: (open: boolean) => void;
 }
 
 export const TaskTable: React.FC<TaskTableProps> = ({
@@ -78,6 +79,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   handleTaskChange,
   handleEntitySelection,
   handleAddTaskRow,
+  setIsColumnDialogOpen
 }) => {
   return (
     <Card className="p-6">
@@ -100,29 +102,30 @@ export const TaskTable: React.FC<TaskTableProps> = ({
           <Button
             variant="outline"
             className="bg-[#EAF2FF] text-[#4285F4] hover:bg-[#D3E3FF] rounded-md transition-colors duration-200 text-lg font-light"
+            onClick={() => {setIsColumnDialogOpen(true)}}
           >
             Configure Columns
           </Button>
         </div>
 
-        <div className="overflow-x-auto border p-3 rounded-xl">
-          <table className="w-full border-collapse">
+        <div className="border p-3 rounded-xl">
+          <table className="w-full border-separate [border-spacing:0.75rem] ">
             <thead>
-              <tr>
+              <tr className="gap-x-10">
                 {columns
                   .filter((col) => col.visible)
                   .map((column) => (
                     <th
                       key={column.name}
-                      className="p-3 text-left font-medium bg-[#EAF2FF] text-[#4285F4] rounded-lg"
+                      className="p-2 font-medium bg-[#EAF2FF] text-[#4285F4] rounded-lg "
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between">
                         {column.name}
                         {column.name !== "Task Number" && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 " />
+                                <Info className="h-4 w-4" />
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>{`Information about ${column.name}`}</p>
@@ -182,7 +185,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </td>
 
                   {/* Remark */}
-                  <td className="p-2">
+                  <td className="p-2 flex flex-row gap-x-2 items-center justify-center mt-4">
                     <Checkbox
                       checked={row.remark || false}
                       onCheckedChange={(checked) =>
@@ -190,6 +193,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                       }
                       className="border border-gray-300 rounded-md"
                     />
+                    <p className="text-sm">Show remark</p>
                   </td>
 
                   {/* Entity Type */}
@@ -238,18 +242,17 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                   </td>
 
                   {/* Route */}
-                  <td className="p-2">
-  <select
-    value={row.route}
-    onChange={(e) => handleTaskChange(rowIndex, "route", e.target.value)}
-    className="w-full bg-gray-50 text-gray-500 rounded-md"
-  >
-    <option value="">Select Route</option>
-    <option value="/image">Image Verification</option>
-    <option value="/invoice">Document Scan</option>
-  </select>
-</td>
-
+                   <td className="p-2">
+                    <select
+                      value={row.route}
+                      onChange={(e) => handleTaskChange(rowIndex, "route", e.target.value)}
+                      className="w-full bg-gray-50 text-gray-500 rounded-md"
+                    >
+                      <option value="">Select Route</option>
+                      <option value="/image">Image Verification</option>
+                      <option value="/invoice">Document Scan</option>
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
