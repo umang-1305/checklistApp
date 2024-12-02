@@ -524,37 +524,53 @@ function getDefaultValueForType(type: string) {
         {} as Record<string, any>
       );
   
-      // Construct entityObjects
-      const entityObjects = task.entityType.reduce(
-        (entityAcc, entityType) => {
-          task.entityObject.forEach((entityObjName) => {
-            entityAcc[entityObjName] = {
-              customInput: {
-                input: true,
-                inputText: ' ',
-              },
-              entityType: entityType || ' ',
-            };
-          });
-          return entityAcc;
-        },
-        {} as Record<string, any>
-      );
+      // Determine the list of entity objects
+      let entityObjectList = task.entityObject;
+      if (!entityObjectList || entityObjectList.length === 0) {
+        // If no entity objects are selected, include all available for each entity type
+        entityObjectList = [];
+        task.entityType.forEach((entityType) => {
+          const allEntityObjects = Object.keys(entityData[entityType] || {});
+          entityObjectList.push(...allEntityObjects);
+        });
+        // Remove duplicates
+        entityObjectList = Array.from(new Set(entityObjectList));
+      }
   
-      // Add custom columns to entityObjects
-      columns.forEach((column) => {
-        if (column.type && column.type !== 'checkbox') {
-          task.entityObject.forEach((entityObjName) => {
-            if (!entityObjects[entityObjName].customInput) {
-              entityObjects[entityObjName].customInput = {};
-            }
-            entityObjects[entityObjName].customInput[column.name] = {
+      // Construct entityObjects as a flat object
+      const entityObjects = entityObjectList.reduce((entityAcc, entityObjName) => {
+        // Find the corresponding entityType for the current entityObjName
+        let correspondingEntityType = ' ';
+        for (const entityType of task.entityType) {
+          if (entityData[entityType]?.[entityObjName]) {
+            correspondingEntityType = entityType;
+            break;
+          }
+        }
+  
+        // Only include the entityObjName if it exists in entityData for any of the task's entityTypes
+        if (correspondingEntityType !== ' ') {
+          entityAcc[entityObjName] = {
+            customInput: {
               input: true,
-              inputText: task[column.name] || ' ',
-            };
+              inputText: ' ',
+            },
+            entityType: correspondingEntityType || ' ',
+          };
+  
+          // Add custom columns to customInput
+          columns.forEach((column) => {
+            if (column.type && column.type !== 'checkbox') {
+              entityAcc[entityObjName].customInput[column.name] = {
+                input: true,
+                inputText: task[column.name] || ' ',
+              };
+            }
           });
         }
-      });
+  
+        return entityAcc;
+      }, {} as Record<string, any>);
   
       acc[taskKey] = {
         actions,
@@ -577,7 +593,15 @@ function getDefaultValueForType(type: string) {
         if (!acc[entityType]) {
           acc[entityType] = {};
         }
-        task.entityObject.forEach((entityObjName) => {
+  
+        // Determine the list of entity objects
+        let entityObjectList = task.entityObject;
+        if (!entityObjectList || entityObjectList.length === 0) {
+          // If no entity objects are selected, include all available for this entity type
+          entityObjectList = Object.keys(entityData[entityType] || {});
+        }
+  
+        entityObjectList.forEach((entityObjName) => {
           // Get entity object data from entityData
           const entityObjData = entityData[entityType]?.[entityObjName];
           if (entityObjData) {
@@ -650,6 +674,7 @@ function getDefaultValueForType(type: string) {
       });
     }
   }, [type, taskRows, mainActorRows, columns, workflow, step, entityData]);
+  
   
   
 
