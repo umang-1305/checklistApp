@@ -455,12 +455,13 @@ const [columns, setColumns] = useState<Column[]>([
   const publishChanges = useCallback(async () => {
     // Construct actors
     const actors = mainActorRows.reduce((acc, actor, index) => {
+      // Include all actors, even if fields are empty, using a single space " " for empty fields
       acc[`actor${index + 1}`] = {
-        action: actor.actions || '',
+        action: actor.actions || ' ',
         date: new Date().toUTCString(),
-        designation: actor.designation || '',
-        name: actor.mainActor || '',
-        team: actor.team || '',
+        designation: actor.designation || ' ',
+        name: actor.mainActor || ' ',
+        team: actor.team || ' ',
       };
       return acc;
     }, {} as Record<string, any>);
@@ -475,8 +476,8 @@ const [columns, setColumns] = useState<Column[]>([
           if (task.actions === actor.actions) {
             const actionKey = `action${actorIndex + 1}`;
             actionsAcc[actionKey] = {
-              actionType: actor.actions || '',
-              actor: actor.mainActor || '',
+              actionType: actor.actions || ' ',
+              actor: actor.mainActor || ' ',
               isSigned: false,
             };
           }
@@ -492,9 +493,9 @@ const [columns, setColumns] = useState<Column[]>([
             entityAcc[entityObjName] = {
               customInput: {
                 input: true,
-                inputText: '',
+                inputText: ' ',
               },
-              entityType: entityType || '',
+              entityType: entityType || ' ',
             };
           });
           return entityAcc;
@@ -511,7 +512,7 @@ const [columns, setColumns] = useState<Column[]>([
             }
             entityObjects[entityObjName].customInput[column.name] = {
               input: true,
-              inputText: task[column.name] || '',
+              inputText: task[column.name] || ' ',
             };
           });
         }
@@ -522,11 +523,11 @@ const [columns, setColumns] = useState<Column[]>([
         entityObjects,
         remark: {
           input: task.remark,
-          remarkText: '',
+          remarkText: ' ',
           showRemark: task.remark,
         },
-        route: task.route || '',
-        taskLabel: task.taskName || '',
+        route: task.route || ' ',
+        taskLabel: task.taskName || ' ',
       };
   
       return acc;
@@ -543,14 +544,14 @@ const [columns, setColumns] = useState<Column[]>([
           const entityObjData = entityData[entityType]?.[entityObjName];
           if (entityObjData) {
             acc[entityType][entityObjName] = {
-              ID: entityObjData.ID || '',
-              name: entityObjData.name || entityObjName,
+              ID: entityObjData.ID || ' ',
+              name: entityObjData.name || ' ',
             };
           } else {
             // If not found, use default values
             acc[entityType][entityObjName] = {
-              ID: '',
-              name: entityObjName,
+              ID: ' ',
+              name: entityObjName || ' ',
             };
           }
         });
@@ -611,6 +612,7 @@ const [columns, setColumns] = useState<Column[]>([
       });
     }
   }, [type, taskRows, mainActorRows, columns, workflow, step, entityData]);
+  
   
 
   if (loading) {
