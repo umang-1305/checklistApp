@@ -1,20 +1,33 @@
-'use client'
+// app/checklist/[type]/[workflow]/page.tsx
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview'
-import { Separator } from "@/components/ui/separator"
-import { Button } from "@/app/components/ui/button"
-import { Checkbox } from "@/app/components/ui/checkbox"
-import { Input } from "@/app/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog"
-import { Info, Trash2, Settings, Plus } from 'lucide-react'
-import { FieldTypeDialog } from '../../components/field-type-dialog'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { toast } from "@/app/components/ui/use-toast"
+'use client';
 
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams } from 'next/navigation';
+import { MultiSelectPreview } from '@/app/components/ui/multi-select-preview';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/app/components/ui/button';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { Input } from '@/app/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+import { Dialog, DialogContent } from '@/app/components/ui/dialog';
+import { Info, Trash2 } from 'lucide-react';
+import { FieldTypeDialog } from '../../../components/field-type-dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { toast } from '@/app/components/ui/use-toast';
 
 interface MainActorRow {
   actions: string;
@@ -42,22 +55,22 @@ interface TaskRow {
   taskName: string;
   actions: string;
   remark: boolean;
-  entityObject: string[];
   entityType: string[];
   route: string;
   [key: string]: any; // For custom columns
   cellConfigs?: { [key: string]: CellConfig };
 }
 
-interface WorkflowData {
-  id: string;
-  [key: string]: any;
+interface EditingCell {
+  rowIndex: number;
+  columnName: string;
 }
 
-interface ChecklistProps {
-  params: Promise<{
-    type: string;
-  }>;
+interface Column {
+  name: string;
+  visible: boolean;
+  type?: string;
+  options?: string[];
 }
 
 interface ActorData {
@@ -76,39 +89,25 @@ interface EntityData {
   };
 }
 
-interface Column {
-  name: string;
-  visible: boolean;
-  type?: string;
-  options?: string[];
-}
+export default function Checklist() {
+  // Extract route parameters using useParams
+  const params = useParams();
+  const { type, workflow } = params;
 
-interface EditingCell {
-  rowIndex: number;
-  columnName: string;
-}
+  // Compute 'step' based on 'type'
+  const stepMapping = {
+    MEQ: 'step1',
+    DRM: 'step2',
+    RMQ: 'step3',
+  };
 
-export default function Checklist({ params }: ChecklistProps) {
-  const [type, setType] = useState<string>("");
-  const [mainActorRows, setMainActorRows] = useState<MainActorRow[]>([{
-    actions: '',
-    mainActor: '',
-    team: '',
-    designation: '',
-    id: '',
-    person: ''
-  }]);
+  const step = stepMapping[type as keyof typeof stepMapping] || 'step3';
 
-  const [taskRows, setTaskRows] = useState<TaskRow[]>([{
-    id: '1',
-    taskNumber: '01.',
-    taskName: '',
-    actions: '',
-    remark: false,
-    entityType: [],
-    entityObject: [],
-    route: ''
-  }]);
+  const [stepData, setStepData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [mainActorRows, setMainActorRows] = useState<MainActorRow[]>([]);
+  const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
   const [columns, setColumns] = useState<Column[]>([
@@ -116,10 +115,8 @@ export default function Checklist({ params }: ChecklistProps) {
     { name: 'Task Name', visible: true },
     { name: 'Actions', visible: true },
     { name: 'Remark', visible: true },
-    { name: 'Entity Type', visible: true },
-    { name: 'Entity Object', visible:true},
+    { name: 'Entity Type/Objects', visible: true },
     { name: 'Route', visible: true },
-
   ]);
 
   const [newColumnName, setNewColumnName] = useState('');
@@ -128,17 +125,17 @@ export default function Checklist({ params }: ChecklistProps) {
   const [newOptionInput, setNewOptionInput] = useState('');
   const [isFieldTypeDialogOpen, setIsFieldTypeDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [newColumnFieldType, setNewColumnFieldType] = useState<string>('');
-  const [newColumnFieldOptions, setNewColumnFieldOptions] = useState<string[]>([]);
 
   const [actorData, setActorData] = useState<ActorData[]>([]);
   const [entityData, setEntityData] = useState<EntityData>({});
-  const [workflowData, setWorkflowData] = useState<WorkflowData | null>(null);
 
+  // Fetching actor data when the component mounts
   useEffect(() => {
     const fetchActorData = async () => {
       try {
-        const response = await fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Actors');
+        const response = await fetch(
+          'https://admin-backend-vj3t6ewmoa-uc.a.run.app/Actors'
+        );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -154,13 +151,15 @@ export default function Checklist({ params }: ChecklistProps) {
     };
 
     fetchActorData();
-    console.log('Actor data:', actorData);
   }, []);
 
+  // Fetching entity data when the component mounts
   useEffect(() => {
     const fetchEntityData = async () => {
       try {
-        const response = await fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Entities');
+        const response = await fetch(
+          'https://admin-backend-vj3t6ewmoa-uc.a.run.app/Entities'
+        );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -178,113 +177,144 @@ export default function Checklist({ params }: ChecklistProps) {
     fetchEntityData();
   }, []);
 
+  // Fetching workflow data based on 'step' and 'workflow' parameters
   useEffect(() => {
-    const fetchData = async () => {
-      if (!type) return;
-
-      const stepMapping = {
-        'MEQ': 'step1',
-        'DRM': 'step2',
-        'RMQ': 'step3'
+    if (type && workflow && step) {
+      const fetchStepData = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(
+            `/api/route?step=${step}&workflow=${workflow}`
+          );
+          if (!response.ok)
+            throw new Error(`Failed to fetch step data: ${response.status}`);
+          const data = await response.json();
+          setStepData(data);
+        } catch (error) {
+          console.error('Error fetching step data:', error);
+        } finally {
+          setLoading(false);
+        }
       };
 
-      const step = stepMapping[type.toUpperCase()] || 'step1';
+      fetchStepData();
+    }
+  }, [type, workflow, step]);
 
-      try {
-        const [workflowResponse, entityResponse] = await Promise.all([
-          fetch('https://admin-backend-vj3t6ewmoa-uc.a.run.app/Workflows/Workflow14'),
-          fetch(`https://admin-backend-85801868683.us-central1.run.app/Workflows/Workflow14/entity/${step}`)
-        ]);
-
-        if (!workflowResponse.ok || !entityResponse.ok) {
-          throw new Error(`HTTP error! status: ${workflowResponse.status} ${entityResponse.status}`);
-        }
-
-        const workflowData = await workflowResponse.json();
-        const entityData = await entityResponse.json();
-
-        if (workflowData.status === 'success' && entityData.status === 'success') {
-          setWorkflowData(workflowData.data);
-          setEntityData(entityData.data.entities);
-          populateFields(workflowData.data, entityData.data.entities);
-        } else {
-          console.error('Failed to fetch workflow or entity data');
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
+  // Update mainActorRows and taskRows when stepData changes
+  useEffect(() => {
+    if (stepData) {
+      // Update mainActorRows
+      if (stepData.actors) {
+        const actorsArray = Object.values(stepData.actors).map(
+          (actor: any) => ({
+            actions: actor.action || '',
+            mainActor: actor.name || '',
+            team: actor.team || '',
+            designation: actor.designation || '',
+            id: actor.id || '',
+            person: actor.person || '',
+          })
+        );
+        setMainActorRows(actorsArray);
       }
-    };
 
-    fetchData();
-  }, [type]);
+      // Update taskRows
+      if (stepData.tasks) {
+        const tasksArray = Object.values(stepData.tasks).map(
+          (task: any, index: number) => ({
+            id: String(index + 1),
+            taskNumber: `${String(index + 1).padStart(2, '0')}.`,
+            taskName: task.taskLabel || '',
+            actions: '',
+            remark: task.remark?.input || false,
+            entityType: [],
+            route: task.route || '',
+            cellConfigs: {},
+          })
+        );
 
-  const populateFields = (workflowData: WorkflowData, entityData: any) => {
-    if (!workflowData || !entityData) return;
+        // Extract 'actions' and 'entityType' for each task
+        tasksArray.forEach((taskRow, idx) => {
+          const taskData = Object.values(stepData.tasks)[idx];
 
-    const stepKey = `step${workflowData.stepOrder}`;
-    const step = workflowData[stepKey];
-    if (!step) return;
+          // Handle 'actions'
+          if (taskData.actions) {
+            const actionValues = Object.values(taskData.actions);
+            if (actionValues.length > 0) {
+              taskRow.actions = actionValues[0].actionType || '';
+            }
+          }
 
-    // Populate main actor rows
-    const actorRows = Object.entries(step.actors).map(([key, value]: [string, any]) => ({
-      actions: value.action,
-      mainActor: value.name,
-      team: value.team,
-      designation: value.designation,
-      id: key,
-      person: value.name
-    }));
-    setMainActorRows(actorRows);
+          // Handle 'entityType'
+          if (taskData.entityObjects) {
+            const entityTypes = Object.values(taskData.entityObjects).map(
+              (entityObj: any) => entityObj.entityType || ''
+            );
+            taskRow.entityType = entityTypes;
+          }
 
-    // Populate task rows
-    const taskRows = Object.entries(step.tasks).map(([key, value]: [string, any], index) => ({
-      id: String(index + 1),
-      taskNumber: `${String(index + 1).padStart(2, '0')}.`,
-      taskName: value.taskLabel,
-      actions: Object.values(value.actions)[0]?.actionType || '',
-      remark: value.remark.showRemark,
-      entityType: Object.keys(value.entityObjects || {}),
-      entityObject: Object.values(value.entityObjects || {}).map((eo: any) => eo.entityType),
-      route: value.route
-    }));
-    setTaskRows(taskRows);
+          // Handle custom columns if needed
+        });
 
-    // Update entity types
-    const newEntityTypes = Object.entries(entityData).map(([key, value]: [string, any]) => ({
-      name: key,
-      value: key.toLowerCase(),
-      children: Object.entries(value).map(([childKey, childValue]: [string, any]) => ({
-        name: childValue.name,
-        value: childKey.toLowerCase(),
-      }))
-    }));
-    setEntityTypes(newEntityTypes);
-  };
+        setTaskRows(tasksArray);
+      }
+    }
+  }, [stepData]);
 
-
+  // Processing entity types for use in select components
   const entityTypes: EntityType[] = useMemo(() => {
-    if (!entityData) return [];
+    return Object.entries(entityData).map(([key, value]) => {
+      const children = Object.entries(value)
+        .filter(
+          ([childKey]) =>
+            childKey !== 'id' && typeof value[childKey] === 'object'
+        )
+        .map(([childKey, childValue]) => ({
+          name: (childValue as { Name?: string })?.Name || childKey,
+          value: (
+            (childValue as { Name?: string })?.Name || childKey
+          )
+            .toLowerCase()
+            .replace(/\s+/g, '_'),
+        }));
 
-    return Object.entries(entityData).map(([key, value]: [string, any]) => ({
-      name: key,
-      value: key.toLowerCase(),
-      children: Object.entries(value).map(([childKey, childValue]: [string, any]) => ({
-        name: childValue.name,
-        value: childKey.toLowerCase(),
-      }))
-    }));
+      return {
+        name: value.id || key,
+        value: (value.id || key).toLowerCase().replace(/\s+/g, '_'),
+        children: children,
+      };
+    });
   }, [entityData]);
 
+  // Function to add a new main actor row
   const handleAddMainActorRow = () => {
-    setMainActorRows([...mainActorRows, { actions: '', mainActor: '', team: '', designation: '', id: '', person: '' }]);
+    setMainActorRows([
+      ...mainActorRows,
+      {
+        actions: '',
+        mainActor: '',
+        team: '',
+        designation: '',
+        id: '',
+        person: '',
+      },
+    ]);
   };
 
-  const handleMainActorChange = (index: number, field: keyof MainActorRow, value: string) => {
+  // Function to handle changes in the main actor rows
+  const handleMainActorChange = (
+    index: number,
+    field: keyof MainActorRow,
+    value: string
+  ) => {
     const newRows = [...mainActorRows];
     newRows[index] = { ...newRows[index], [field]: value };
 
     if (field === 'mainActor') {
-      const selectedActor = actorData.find(actor => actor.Designated_Actor === value);
+      const selectedActor = actorData.find(
+        (actor) => actor.Designated_Actor === value
+      );
       if (selectedActor) {
         newRows[index].team = selectedActor.field;
         newRows[index].designation = selectedActor.designation;
@@ -294,6 +324,7 @@ export default function Checklist({ params }: ChecklistProps) {
     setMainActorRows(newRows);
   };
 
+  // Function to add a new task row
   const handleAddTaskRow = () => {
     const newRow: TaskRow = {
       id: String(taskRows.length + 1),
@@ -302,13 +333,17 @@ export default function Checklist({ params }: ChecklistProps) {
       actions: '',
       remark: false,
       entityType: [],
-      entityObject: [],
-      route: ''
+      route: '',
     };
     setTaskRows([...taskRows, newRow]);
   };
 
-  const handleTaskChange = (rowIndex: number, field: keyof TaskRow | string, value: any) => {
+  // Function to handle changes in the task rows
+  const handleTaskChange = (
+    rowIndex: number,
+    field: keyof TaskRow | string,
+    value: any
+  ) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
       newRows[rowIndex] = { ...newRows[rowIndex], [field]: value };
@@ -316,81 +351,77 @@ export default function Checklist({ params }: ChecklistProps) {
     });
   };
 
-  const handleCustomColumnChange = (value: any, rowIndex: number, column: Column) => {
-    const newRows = [...taskRows];
-    newRows[rowIndex] = { ...newRows[rowIndex], [column.name]: value };
-    setTaskRows(newRows);
+  // Function to handle changes in entity types
+  const handleEntityTypeChange = (
+    rowIndex: number,
+    updatedEntityTypes: string[]
+  ) => {
+    setTaskRows((prevRows) => {
+      const newRows = [...prevRows];
+      newRows[rowIndex].entityType = updatedEntityTypes;
+      return newRows;
+    });
   };
 
-  const handleEntityTypeChange = (rowIndex: number, selectedValues: string[]) => {
-    const newRows = [...taskRows];
-    newRows[rowIndex].entityType = selectedValues;
-    setTaskRows(newRows);
-  };
-
+  // Function to add a custom column
   const addCustomColumn = () => {
     if (newColumnName) {
-      const newColumn: Column = { 
-        name: newColumnName, 
-        visible: true, 
-        type: newColumnType
+      const newColumn: Column = {
+        name: newColumnName,
+        visible: true,
+        type: newColumnType,
       };
       setColumns([...columns, newColumn]);
-      setTaskRows(taskRows.map(row => ({ 
-        ...row, 
-        [newColumnName]: '',
-        cellConfigs: {
-          ...row.cellConfigs,
-          [newColumnName]: { type: '' }
-        }
-      })));
+      setTaskRows(
+        taskRows.map((row) => ({
+          ...row,
+          [newColumnName]: '',
+          cellConfigs: {
+            ...row.cellConfigs,
+            [newColumnName]: { type: '' },
+          },
+        }))
+      );
       setNewColumnName('');
     }
   };
 
-  const addOption = () => {
-    if (newOptionInput && !newColumnOptions.includes(newOptionInput)) {
-      setNewColumnOptions([...newColumnOptions, newOptionInput]);
-      setNewOptionInput('');
-    }
-  };
-
+  // Function to open the field type dialog
   const openFieldTypeDialog = (rowIndex: number, columnName: string) => {
     setEditingCell({ rowIndex, columnName });
     setIsFieldTypeDialogOpen(true);
   };
 
+  // Function to save cell configuration
   const handleCellConfigSave = (config: CellConfig) => {
     if (editingCell) {
       const updatedTaskRows = [...taskRows];
       if (!updatedTaskRows[editingCell.rowIndex].cellConfigs) {
         updatedTaskRows[editingCell.rowIndex].cellConfigs = {};
       }
-      updatedTaskRows[editingCell.rowIndex].cellConfigs[editingCell.columnName] = config;
+      updatedTaskRows[editingCell.rowIndex].cellConfigs![
+        editingCell.columnName
+      ] = config;
       setTaskRows(updatedTaskRows);
     }
     setIsFieldTypeDialogOpen(false);
     setEditingCell(null);
   };
 
-  const handleDelete = () => {
-    setMainActorRows(mainActorRows.slice(0, -1));
-  }
+  // Function to delete a main actor row
+  const handleDelete = (index: number) => {
+    const newRows = [...mainActorRows];
+    newRows.splice(index, 1);
+    setMainActorRows(newRows);
+  };
 
-   const title = type ? `${type.charAt(0).toUpperCase() + type.slice(1)} Checklist` : 'Checklist & Sign'
+  // Setting the title based on the 'type' parameter
+  const title = type
+    ? `${type.charAt(0).toUpperCase() + type.slice(1)} Checklist`
+    : 'Checklist & Sign';
 
+  // Function to publish changes
   const publishChanges = useCallback(async () => {
-    if (!workflowData || !type) return;
-
-    const stepMapping = {
-      'MEQ': 'step1',
-      'DRM': 'step2',
-      'RMQ': 'step3'
-    };
-
-    const stepKey = stepMapping[type.toUpperCase()] || 'step1';
-    const updatedWorkflow = { ...workflowData };
-
     const actors = mainActorRows.reduce((acc, actor, index) => {
       if (actor.actions && actor.mainActor) {
         acc[`actor${index + 1}`] = {
@@ -398,7 +429,7 @@ export default function Checklist({ params }: ChecklistProps) {
           date: new Date().toUTCString(),
           designation: actor.designation,
           name: actor.mainActor,
-          team: actor.team
+          team: actor.team,
         };
       }
       return acc;
@@ -406,81 +437,128 @@ export default function Checklist({ params }: ChecklistProps) {
 
     const tasks = taskRows.reduce((acc, task, index) => {
       const taskKey = `task${index + 1}`;
-      const actions = mainActorRows.reduce((actionsAcc, actor, actorIndex) => {
-        if (task.actions === actor.actions && actor.actions && actor.mainActor) {
-          const actionKey = `action${actorIndex + 1}`;
-          actionsAcc[actionKey] = {
-            actionType: actor.actions,
-            actor: actor.mainActor,
-            isSigned: false
-          };
-        }
-        return actionsAcc;
-      }, {} as Record<string, any>);
-
-      const entityObjects = task.entityType.reduce((entityAcc, entity, entityIndex) => {
-        entityAcc[entity] = {
-          entityType: task.entityObject[entityIndex] || '',
-          customInput: {
-            input: true,
-            inputText: ""
+      const actions = mainActorRows.reduce(
+        (actionsAcc, actor, actorIndex) => {
+          if (
+            task.actions === actor.actions &&
+            actor.actions &&
+            actor.mainActor
+          ) {
+            const actionKey = `action${actorIndex + 1}`;
+            actionsAcc[actionKey] = {
+              actionType: actor.actions,
+              actor: actor.mainActor,
+              isSigned: false,
+            };
           }
-        };
-        return entityAcc;
-      }, {} as Record<string, any>);
+          return actionsAcc;
+        },
+        {} as Record<string, any>
+      );
+
+      const entityObjects = task.entityType.reduce(
+        (entityAcc, entity, entityIndex) => {
+          entityAcc[`EO${entityIndex + 1}`] = {
+            customInput: {
+              input: true,
+              inputText: '',
+            },
+            entityType: entity,
+          };
+          return entityAcc;
+        },
+        {} as Record<string, any>
+      );
 
       acc[taskKey] = {
         actions,
         entityObjects,
         remark: {
           input: task.remark,
-          remarkText: "",
-          showRemark: task.remark
+          remarkText: '',
+          showRemark: task.remark,
         },
-        route: task.route || "",
-        taskLabel: task.taskName
+        route: task.route || '',
+        taskLabel: task.taskName,
       };
+
+      // Add custom columns
+      columns.forEach((column) => {
+        if (column.type && column.type !== 'checkbox' && task[column.name]) {
+          if (!acc[taskKey].entityObjects.EO1.customInput) {
+            acc[taskKey].entityObjects.EO1.customInput = {};
+          }
+          acc[taskKey].entityObjects.EO1.customInput[column.name] = {
+            input: true,
+            inputText: task[column.name],
+          };
+        }
+      });
 
       return acc;
     }, {} as Record<string, any>);
 
-    updatedWorkflow[stepKey] = {
-      ...updatedWorkflow[stepKey],
-      actors,
-      tasks
+    const payload = {
+      [step]: {
+        actors,
+        entities: {}, // Populate this as needed
+        name: `${type} Checklist`,
+        stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
+        tasks,
+      },
     };
 
-    try {
-      const response = await fetch('https://admin-backend-85801868683.us-central1.run.app/Workflows/update/Workflow14', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ workflow: updatedWorkflow }),
+    // Check if tasks object is empty
+    if (Object.keys(tasks).length === 0) {
+      toast({
+        title: 'Error publishing changes',
+        description: 'Please add at least one valid task before publishing.',
+        variant: 'destructive',
       });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://admin-backend-85801868683.us-central1.run.app/Workflows/replace/${workflow}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Network response was not ok');
       }
 
-      const data = await response.json();
       toast({
-        title: "Changes published successfully",
-        description: "Your changes have been saved and published.",
+        title: 'Changes published successfully',
+        description: 'Your changes have been saved and published.',
       });
     } catch (error) {
       console.error('Error:', error);
       toast({
-        title: "Error publishing changes",
-        description: error instanceof Error ? error.message : "There was a problem publishing your changes. Please try again.",
-        variant: "destructive",
+        title: 'Error publishing changes',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'There was a problem publishing your changes. Please try again.',
+        variant: 'destructive',
       });
     }
-  }, [workflowData, mainActorRows, taskRows, type]);
+  }, [type, taskRows, mainActorRows, columns, workflow, step]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="p-6 space-y-3 text-lg font-poppins">
+
       <div className="flex justify-between items-center">
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -704,57 +782,7 @@ export default function Checklist({ params }: ChecklistProps) {
                       onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
                     >
                       <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                        <SelectValue placeholder="Select Entity Type">
-                          <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-gray-300 rounded mt-2 max-h-60 overflow-y-auto">
-                        {entityTypes.map((parent) => (
-                          <React.Fragment key={parent.value}>
-                            <div className="flex items-center px-2 py-1 hover:bg-gray-100">
-                              <Checkbox
-                                checked={parent.children?.every((child) => row.entityType.includes(child.value))}
-                                onCheckedChange={(checked) => {
-                                  const isChecked = checked === true;
-                                  handleEntityTypeChange(
-                                    rowIndex,
-                                    isChecked
-                                      ? [...row.entityType, ...parent.children.map((child) => child.value)]
-                                      : row.entityType.filter((type) => !parent.children?.some((child) => child.value === type))
-                                  );
-                                }}
-                                className="mr-2"
-                              />
-                              <span className="font-medium">{parent.name}</span>
-                            </div>
-                            {parent.children?.map((child) => (
-                              <div key={child.value} className="flex items-center pl-6 px-2 py-1 hover:bg-gray-100">
-                                <Checkbox
-                                  checked={row.entityType.includes(child.value)}
-                                  onCheckedChange={(checked) => {
-                                    const isChecked = checked === true;
-                                    const updatedEntityTypes = isChecked
-                                      ? [...row.entityType, child.value]
-                                      : row.entityType.filter((type) => type !== child.value);
-                                    handleEntityTypeChange(rowIndex, updatedEntityTypes);
-                                  }}
-                                  className="mr-2"
-                                />
-                                <span>{child.name}</span>
-                              </div>
-                            ))}
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    </td>
-                    <td className="p-2">
-                    <Select
-                      value={row.entityType.join(',')}
-                      onValueChange={(value) => handleEntityTypeChange(rowIndex, Array.isArray(value) ? value : [value])}
-                    >
-                      <SelectTrigger className=" border border-gray-300 focus:border-[#4285F4] transition-colors duration-200 bg-gray-50 focus:bg-white  text-gray-500">
-                        <SelectValue placeholder="Select Entity Object">
+                        <SelectValue placeholder="Select entity type/object">
                           <MultiSelectPreview selected={row.entityType} entityTypes={entityTypes} />
                         </SelectValue>
                       </SelectTrigger>
@@ -899,7 +927,8 @@ export default function Checklist({ params }: ChecklistProps) {
   )
 }
 
-function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void, openFieldTypeDialog: (rowIndex:number, columnName: string) => void) {
+// Function to render input elements based on the cell configuration
+function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleTaskChange: (rowIndex: number, columnName: string, value: any) => void, openFieldTypeDialog: (rowIndex: number, columnName: string) => void) {
   const cellConfig = row.cellConfigs?.[column.name] || { type: column.type, options: column.options };
   if(cellConfig.type === 'blank') {
     return null;
@@ -950,23 +979,23 @@ function renderCellInput(row: TaskRow, rowIndex: number, column: Column, handleT
           </Select>
         );
       default:
-        return (
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
-            onClick={() => openFieldTypeDialog(rowIndex, column.name)}
-          >
-            Set Field Type
-          </Button>
-        );
+        return null;
     }
   })();
 
   return (
     <div className="flex flex-col space-y-2">
       {inputElement}
+      {!cellConfig.type &&
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-dashed border-[#4285F4] text-[#4285F4] hover:bg-[#EAF2FF]"
+        onClick={() => openFieldTypeDialog(rowIndex, column.name)}
+      >
+        Set Field Type
+      </Button>
+      }
     </div>
   );
 }
-
