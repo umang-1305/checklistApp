@@ -371,7 +371,21 @@ const [columns, setColumns] = useState<Column[]>([
       return newRows;
     });
   };
-  
+  const handleEntitySelection = (
+    rowIndex: number,
+    field: "entityType" | "entityObject",
+    updatedValues: string[]
+  ) => {
+    setTaskRows((prevRows) => {
+      const newRows = [...prevRows];
+      newRows[rowIndex] = {
+        ...newRows[rowIndex],
+        [field]: updatedValues,
+      };
+      return newRows;
+    });
+  };
+
   const handleEntityObjectChange = (rowIndex: number, updatedEntityObject: string) => {
     setTaskRows((prevRows) => {
       const newRows = [...prevRows];
@@ -439,32 +453,30 @@ const [columns, setColumns] = useState<Column[]>([
 
   // Function to publish changes
   const publishChanges = useCallback(async () => {
+    // Construct actors
     const actors = mainActorRows.reduce((acc, actor, index) => {
-      if (actor.actions && actor.mainActor) {
-        acc[`actor${index + 1}`] = {
-          action: actor.actions,
-          date: new Date().toUTCString(),
-          designation: actor.designation,
-          name: actor.mainActor,
-          team: actor.team,
-        };
-      }
+      acc[`actor${index + 1}`] = {
+        action: actor.actions || '',
+        date: new Date().toUTCString(),
+        designation: actor.designation || '',
+        name: actor.mainActor || '',
+        team: actor.team || '',
+      };
       return acc;
     }, {} as Record<string, any>);
-
+  
+    // Construct tasks
     const tasks = taskRows.reduce((acc, task, index) => {
       const taskKey = `task${index + 1}`;
+  
+      // Construct actions
       const actions = mainActorRows.reduce(
         (actionsAcc, actor, actorIndex) => {
-          if (
-            task.actions === actor.actions &&
-            actor.actions &&
-            actor.mainActor
-          ) {
+          if (task.actions === actor.actions) {
             const actionKey = `action${actorIndex + 1}`;
             actionsAcc[actionKey] = {
-              actionType: actor.actions,
-              actor: actor.mainActor,
+              actionType: actor.actions || '',
+              actor: actor.mainActor || '',
               isSigned: false,
             };
           }
@@ -472,21 +484,39 @@ const [columns, setColumns] = useState<Column[]>([
         },
         {} as Record<string, any>
       );
-
+  
+      // Construct entityObjects
       const entityObjects = task.entityType.reduce(
-        (entityAcc, entity, entityIndex) => {
-          entityAcc[`EO${entityIndex + 1}`] = {
-            customInput: {
-              input: true,
-              inputText: '',
-            },
-            entityType: entity,
-          };
+        (entityAcc, entityType) => {
+          task.entityObject.forEach((entityObjName) => {
+            entityAcc[entityObjName] = {
+              customInput: {
+                input: true,
+                inputText: '',
+              },
+              entityType: entityType || '',
+            };
+          });
           return entityAcc;
         },
         {} as Record<string, any>
       );
-
+  
+      // Add custom columns to entityObjects
+      columns.forEach((column) => {
+        if (column.type && column.type !== 'checkbox') {
+          task.entityObject.forEach((entityObjName) => {
+            if (!entityObjects[entityObjName].customInput) {
+              entityObjects[entityObjName].customInput = {};
+            }
+            entityObjects[entityObjName].customInput[column.name] = {
+              input: true,
+              inputText: task[column.name] || '',
+            };
+          });
+        }
+      });
+  
       acc[taskKey] = {
         actions,
         entityObjects,
@@ -496,35 +526,48 @@ const [columns, setColumns] = useState<Column[]>([
           showRemark: task.remark,
         },
         route: task.route || '',
-        taskLabel: task.taskName,
+        taskLabel: task.taskName || '',
       };
-
-      // Add custom columns
-      columns.forEach((column) => {
-        if (column.type && column.type !== 'checkbox' && task[column.name]) {
-          if (!acc[taskKey].entityObjects.EO1.customInput) {
-            acc[taskKey].entityObjects.EO1.customInput = {};
-          }
-          acc[taskKey].entityObjects.EO1.customInput[column.name] = {
-            input: true,
-            inputText: task[column.name],
-          };
-        }
-      });
-
+  
       return acc;
     }, {} as Record<string, any>);
-
+  
+    // Construct entities
+    const entities = taskRows.reduce((acc, task) => {
+      task.entityType.forEach((entityType) => {
+        if (!acc[entityType]) {
+          acc[entityType] = {};
+        }
+        task.entityObject.forEach((entityObjName) => {
+          // Get entity object data from entityData
+          const entityObjData = entityData[entityType]?.[entityObjName];
+          if (entityObjData) {
+            acc[entityType][entityObjName] = {
+              ID: entityObjData.ID || '',
+              name: entityObjData.name || entityObjName,
+            };
+          } else {
+            // If not found, use default values
+            acc[entityType][entityObjName] = {
+              ID: '',
+              name: entityObjName,
+            };
+          }
+        });
+      });
+      return acc;
+    }, {} as Record<string, any>);
+  
     const payload = {
       [step]: {
         actors,
-        entities: {}, // Populate this as needed
+        entities,
         name: `${type} Checklist`,
         stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
         tasks,
       },
     };
-
+  
     // Check if tasks object is empty
     if (Object.keys(tasks).length === 0) {
       toast({
@@ -534,7 +577,7 @@ const [columns, setColumns] = useState<Column[]>([
       });
       return;
     }
-
+  
     try {
       const response = await fetch(
         `https://admin-backend-85801868683.us-central1.run.app/Workflows/update/${workflow}`,
@@ -546,12 +589,12 @@ const [columns, setColumns] = useState<Column[]>([
           body: JSON.stringify(payload),
         }
       );
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Network response was not ok');
       }
-
+  
       toast({
         title: 'Changes published successfully',
         description: 'Your changes have been saved and published.',
@@ -567,7 +610,8 @@ const [columns, setColumns] = useState<Column[]>([
         variant: 'destructive',
       });
     }
-  }, [type, taskRows, mainActorRows, columns, workflow, step]);
+  }, [type, taskRows, mainActorRows, columns, workflow, step, entityData]);
+  
 
   if (loading) {
     return <div>Loading...</div>;
@@ -614,6 +658,7 @@ const [columns, setColumns] = useState<Column[]>([
         handleTaskChange={handleTaskChange}
         handleEntityTypeChange={handleEntityTypeChange}
         openFieldTypeDialog={openFieldTypeDialog}
+        handleEntitySelection={handleEntitySelection}
         handleAddTaskRow={handleAddTaskRow}
       />
 

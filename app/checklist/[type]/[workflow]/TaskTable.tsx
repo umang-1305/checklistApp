@@ -239,15 +239,17 @@ export const TaskTable: React.FC<TaskTableProps> = ({
 
                   {/* Route */}
                   <td className="p-2">
-                    <Input
-                      placeholder="Enter Route"
-                      value={row.route}
-                      onChange={(e) =>
-                        handleTaskChange(rowIndex, "route", e.target.value)
-                      }
-                      className="w-full bg-gray-50 text-gray-500 rounded-md"
-                    />
-                  </td>
+  <select
+    value={row.route}
+    onChange={(e) => handleTaskChange(rowIndex, "route", e.target.value)}
+    className="w-full bg-gray-50 text-gray-500 rounded-md"
+  >
+    <option value="">Select Route</option>
+    <option value="/image">Image Verification</option>
+    <option value="/invoice">Document Scan</option>
+  </select>
+</td>
+
                 </tr>
               ))}
             </tbody>
