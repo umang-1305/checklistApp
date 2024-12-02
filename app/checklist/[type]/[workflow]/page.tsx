@@ -493,12 +493,13 @@ function getDefaultValueForType(type: string) {
   const publishChanges = useCallback(async () => {
     // Construct actors
     const actors = mainActorRows.reduce((acc, actor, index) => {
+      // Include all actors, even if fields are empty, using a single space " " for empty fields
       acc[`actor${index + 1}`] = {
-        action: actor.actions || '',
+        action: actor.actions || ' ',
         date: new Date().toUTCString(),
-        designation: actor.designation || '',
-        name: actor.mainActor || '',
-        team: actor.team || '',
+        designation: actor.designation || ' ',
+        name: actor.mainActor || ' ',
+        team: actor.team || ' ',
       };
       return acc;
     }, {} as Record<string, any>);
@@ -513,8 +514,8 @@ function getDefaultValueForType(type: string) {
           if (task.actions === actor.actions) {
             const actionKey = `action${actorIndex + 1}`;
             actionsAcc[actionKey] = {
-              actionType: actor.actions || '',
-              actor: actor.mainActor || '',
+              actionType: actor.actions || ' ',
+              actor: actor.mainActor || ' ',
               isSigned: false,
             };
           }
@@ -530,9 +531,9 @@ function getDefaultValueForType(type: string) {
             entityAcc[entityObjName] = {
               customInput: {
                 input: true,
-                inputText: '',
+                inputText: ' ',
               },
-              entityType: entityType || '',
+              entityType: entityType || ' ',
             };
           });
           return entityAcc;
@@ -549,7 +550,7 @@ function getDefaultValueForType(type: string) {
             }
             entityObjects[entityObjName].customInput[column.name] = {
               input: true,
-              inputText: task[column.name] || '',
+              inputText: task[column.name] || ' ',
             };
           });
         }
@@ -560,11 +561,11 @@ function getDefaultValueForType(type: string) {
         entityObjects,
         remark: {
           input: task.remark,
-          remarkText: '',
+          remarkText: ' ',
           showRemark: task.remark,
         },
-        route: task.route || '',
-        taskLabel: task.taskName || '',
+        route: task.route || ' ',
+        taskLabel: task.taskName || ' ',
       };
   
       return acc;
@@ -581,14 +582,14 @@ function getDefaultValueForType(type: string) {
           const entityObjData = entityData[entityType]?.[entityObjName];
           if (entityObjData) {
             acc[entityType][entityObjName] = {
-              ID: entityObjData.ID || '',
-              name: entityObjData.name || entityObjName,
+              ID: entityObjData.ID || ' ',
+              name: entityObjData.name || ' ',
             };
           } else {
             // If not found, use default values
             acc[entityType][entityObjName] = {
-              ID: '',
-              name: entityObjName,
+              ID: ' ',
+              name: entityObjName || ' ',
             };
           }
         });
@@ -649,6 +650,7 @@ function getDefaultValueForType(type: string) {
       });
     }
   }, [type, taskRows, mainActorRows, columns, workflow, step, entityData]);
+  
   
 
   if (loading) {
