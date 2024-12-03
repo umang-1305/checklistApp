@@ -66,3 +66,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes loading-dot {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+}
+
+.animate-loading-dot {
+  animation: loading-dot 1.4s infinite ease-in-out both;
+}

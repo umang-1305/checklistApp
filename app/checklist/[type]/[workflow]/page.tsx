@@ -630,7 +630,21 @@ const publishChanges = useCallback(async () => {
     });
   }
 }, [type, taskRows, mainActorRows, workflow, step, entityData]);  if (loading) {
-    return <div>Loading...</div>;
+    return(
+    <div className="fixed inset-0 flex items-center justify-center">
+      <div className="flex space-x-2">
+        {[0, 1, 2, 3].map((index) => (
+          <div
+            key={index}
+            className={`w-2.5 h-2.5 bg-blue-600 rounded-full animate-loading-dot`}
+            style={{
+              animationDelay: `${index * 0.15}s`
+            }}
+          />
+        ))}
+      </div>
+    </div>
+    );
   }
 
   return (
