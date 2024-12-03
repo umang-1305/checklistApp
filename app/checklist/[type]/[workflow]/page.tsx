@@ -492,9 +492,42 @@ function getDefaultValueForType(type: string) {
 // Function to publish changes
 // Function to publish changes
 const publishChanges = useCallback(async () => {
-  const updatedTaskRows = taskRows.map((taskRow) => {
-    let entityObjects = {};
+  // Step 1: Map action types to actors
+  const actionTypeToActorMap = mainActorRows.reduce((acc, actor, index) => {
+    const actionType = actor.actions.trim().toLowerCase();
+    if (actionType) {
+      acc[actionType] = `actor${index + 1}`;
+    }
+    return acc;
+  }, {} as { [key: string]: string });
 
+  console.log('Action Type to Actor Map:', actionTypeToActorMap);
+
+  // Step 2: Process taskRows to build entityObjects and extract custom columns
+  const updatedTaskRows = taskRows.map((taskRow) => {
+    let entityObjects: { [key: string]: any } = {};
+    let customFields: { [key: string]: any } = {};
+
+    // Extract custom columns based on the 'columns' state
+    columns.forEach((column) => {
+      if (
+        column.name !== 'Task Number' &&
+        column.name !== 'Task Name' &&
+        column.name !== 'Actions' &&
+        column.name !== 'Remark' &&
+        column.name !== 'Entity Type' &&
+        column.name !== 'Entity Object' &&
+        column.name !== 'Route'
+      ) {
+        // Assuming custom columns are of type 'text', adjust as needed
+        customFields[column.name] = {
+          input: taskRow[column.name] !== undefined ? true : false,
+          inputText: taskRow[column.name] || ' ',
+        };
+      }
+    });
+
+    // Process entityObjects
     if (taskRow.entityType.length > 0) {
       taskRow.entityType.forEach((entityType) => {
         // Normalize entityType to match the keys in entityData
@@ -511,16 +544,8 @@ const publishChanges = useCallback(async () => {
                 entityType: normalizedEntityType,
               };
 
-              // For each custom cell, add its data
-              if (taskRow.customCells && taskRow.customCells.length > 0) {
-                taskRow.customCells.forEach((customCell) => {
-                  const key = customCell.tag.toLowerCase().replace(/\s+/g, '_');
-                  entityObjects[normalizedObjName][key] = {
-                    input: true,
-                    inputText: " ",
-                  };
-                });
-              }
+              // Add entity-specific fields if any (custom fields are now outside)
+              // No action needed here
             });
           } else {
             // No specific objects selected, include all for the type
@@ -530,16 +555,8 @@ const publishChanges = useCallback(async () => {
                 entityType: normalizedEntityType,
               };
 
-              // For each custom cell, add its data
-              if (taskRow.customCells && taskRow.customCells.length > 0) {
-                taskRow.customCells.forEach((customCell) => {
-                  const key = customCell.tag.toLowerCase().replace(/\s+/g, '_');
-                  entityObjects[objName][key] = {
-                    input: true,
-                    inputText: " ",
-                  };
-                });
-              }
+              // Add entity-specific fields if any (custom fields are now outside)
+              // No action needed here
             });
           }
         } else {
@@ -548,10 +565,25 @@ const publishChanges = useCallback(async () => {
       });
     }
 
-    return { ...taskRow, entityObjects };
+    return { ...taskRow, entityObjects, ...customFields };
   });
 
   console.log('Updated Task Rows Before Payload:', JSON.stringify(updatedTaskRows, null, 2));
+
+  // Step 3: Process entities to include in payload
+  const processedEntities = Object.keys(entityData).reduce((acc, entityTypeKey) => {
+    acc[entityTypeKey] = Object.entries(entityData[entityTypeKey]).reduce(
+      (entityAcc, [entityObjKey, entityObjValue]) => {
+        entityAcc[entityObjKey] = {
+          ID: entityObjValue.ID || '',
+          name: entityObjValue.name || '',
+        };
+        return entityAcc;
+      },
+      {} as { [key: string]: { ID?: string; name: string } }
+    );
+    return acc;
+  }, {} as { [key: string]: { [key: string]: { ID?: string; name: string } } });
 
   const payload = {
     [step]: {
@@ -565,14 +597,16 @@ const publishChanges = useCallback(async () => {
           team: actor.team || ' ',
         };
         return acc;
-      }, {}),
+      }, {} as { [key: string]: any }),
       tasks: updatedTaskRows.reduce((acc, task, index) => {
         // Process actions for the task
-        let taskActions = {};
+        let taskActions: { [key: string]: any } = {};
         if (task.actions) {
-          taskActions[`action2`] = {
+          const actionType = task.actions.trim().toLowerCase();
+          const actorKey = actionTypeToActorMap[actionType] || `actor1`; // Default to actor1 if not found
+          taskActions[`action${index + 1}`] = {
             actionType: task.actions || ' ',
-            actor: "actor1", // Replace "actor1" with the appropriate value if needed
+            actor: actorKey, // Dynamically assigned actor
             isSigned: false, // Set to false by default or as required
           };
         }
@@ -587,11 +621,32 @@ const publishChanges = useCallback(async () => {
           },
           route: task.route || ' ',
           taskLabel: task.taskName || ' ',
+          // Include custom fields directly under the task
+          ...Object.keys(task).reduce((customAcc, key) => {
+            if (
+              ![
+                'id',
+                'taskNumber',
+                'taskName',
+                'actions',
+                'remark',
+                'entityType',
+                'entityObject',
+                'route',
+                'cellConfigs',
+                'entityObjects',
+              ].includes(key)
+            ) {
+              customAcc[key] = task[key];
+            }
+            return customAcc;
+          }, {} as { [key: string]: any }),
         };
         return acc;
-      }, {}),
+      }, {} as { [key: string]: any }),
       name: `${type} Checklist`,
       stepOrder: Object.keys(stepMapping).indexOf(type) + 1,
+      entities: processedEntities, // Include entities in the payload
     },
   };
 
@@ -621,7 +676,7 @@ const publishChanges = useCallback(async () => {
       title: 'Changes published successfully',
       description: 'Your changes have been saved and published.',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error Response from API:', error);
     toast({
       title: 'Error publishing changes',
@@ -629,7 +684,10 @@ const publishChanges = useCallback(async () => {
       variant: 'destructive',
     });
   }
-}, [type, taskRows, mainActorRows, workflow, step, entityData]);  if (loading) {
+}, [type, taskRows, mainActorRows, workflow, step, entityData, columns]);
+
+
+if (loading) {
     return(
     <div className="fixed inset-0 flex items-center justify-center">
       <div className="flex space-x-2">
