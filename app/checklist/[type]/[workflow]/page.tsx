@@ -15,6 +15,7 @@ import { CellInput } from './CellInput';
 import { TaskTable } from './TaskTable';
 import { ConfigureColumnsDialog } from './ConfigureColumnsDialog';
 import { MainActorSection } from './MainActorSection';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select"
 
 interface MainActorRow {
   actions: string;
@@ -99,7 +100,7 @@ export default function Checklist() {
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
-
+  const [selectedType, setSelectedType] = useState("overall")
   
 
 const [columns, setColumns] = useState<Column[]>([
@@ -595,6 +596,7 @@ const publishChanges = useCallback(async () => {
           inspected: 'false',
           name: actor.mainActor || ' ',
           team: actor.team || ' ',
+          type: selectedType || ' ',
         };
         return acc;
       }, {} as { [key: string]: any }),
@@ -684,7 +686,7 @@ const publishChanges = useCallback(async () => {
       variant: 'destructive',
     });
   }
-}, [type, taskRows, mainActorRows, workflow, step, entityData, columns]);
+}, [type, taskRows, mainActorRows, workflow, step, entityData, columns,selectedType]);
 
 
 if (loading) {
@@ -711,7 +713,8 @@ if (loading) {
         <Card className="w-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-2xl font-semibold">{title}</CardTitle>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-5">
+            
               <Button
                 className="bg-[#4285F4] text-white hover:bg-[#3367D6] rounded-2xl p-4 text-lg font-normal"
                 onClick={publishChanges}
@@ -719,6 +722,17 @@ if (loading) {
               >
                 Publish changes
               </Button>
+              <Select onValueChange={(value) => setSelectedType(value)}>
+  <SelectTrigger className="bg-white border border-gray-300">
+    <SelectValue placeholder="Select Task" />
+  </SelectTrigger>
+  <SelectContent className="bg-white">
+    <SelectItem value="overall">Overall</SelectItem>
+    <SelectItem value="Task">Task</SelectItem>
+  </SelectContent>
+</Select>
+
+
               <Avatar>
                 <AvatarFallback className="bg-[#FFA4E8]">L</AvatarFallback>
               </Avatar>

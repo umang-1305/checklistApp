@@ -63,23 +63,31 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
     />
     
     <Combobox
-      value={row.mainActor}
-      onSelect={(value) => {
-        handleMainActorChange(index, 'mainActor', value);
-        if (value === 'realtime') {
-          handleMainActorChange(index, 'team', null);
-          handleMainActorChange(index, 'designation', null);
-        }
-      }}
-      options={[
-        { value: 'realtime', label: 'Check on Realtime' },
-        ...actorData.map(actor => ({
-          value: actor.Designated_Actor,
-          label: actor.Designated_Actor
-        }))
-      ]}
-      placeholder="Select Actor"
-    />
+  value={row.mainActor}
+  onSelect={(value) => {
+    console.log('Selected value:', value); // Log the selected value
+    if (!value) {
+      console.warn('No value selected or value is undefined.');
+      return;
+    }
+    handleMainActorChange(index, 'mainActor', value);
+
+    if (value === 'realtime') {
+      handleMainActorChange(index, 'team', null);
+      handleMainActorChange(index, 'designation', null);
+    }
+  }}
+  options={[
+    { value: 'realtime', label: 'Check on Realtime' },
+    ...actorData.map((actor) => ({
+      value: actor.Designated_Actor,
+      label: actor.Designated_Actor,
+    })),
+  ]}
+  placeholder="Select Actor"
+/>
+
+
 
     <Combobox
       value={row.team}
