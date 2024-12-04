@@ -656,7 +656,7 @@ const publishChanges = useCallback(async () => {
 
   try {
     const response = await fetch(
-      `https://admin-backend-85801868683.us-central1.run.app/Workflows/update_old/${workflow}`,
+      `https://admin-backend-85801868683.us-central1.run.app/Workflows/update/${workflow}`,
       {
         method: 'POST',
         headers: {

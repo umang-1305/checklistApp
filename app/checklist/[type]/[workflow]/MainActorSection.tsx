@@ -1,7 +1,7 @@
 import React from 'react';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
-import { Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { Trash2} from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import Combobox from '@/app/components/ui/combo-box';
@@ -65,7 +65,7 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
     <Combobox
   value={row.mainActor}
   onSelect={(value) => {
-    console.log('Selected value:', value); // Log the selected value
+    console.log('Selected value:', value); 
     if (!value) {
       console.warn('No value selected or value is undefined.');
       return;
