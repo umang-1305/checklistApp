@@ -100,7 +100,7 @@ export default function Checklist() {
   const [taskRows, setTaskRows] = useState<TaskRow[]>([]);
 
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState("overall")
+ // const [selectedType, setSelectedType] = useState("overall")
   
 
 const [columns, setColumns] = useState<Column[]>([
@@ -596,7 +596,7 @@ const publishChanges = useCallback(async () => {
           inspected: 'false',
           name: actor.mainActor || ' ',
           team: actor.team || ' ',
-          type: selectedType || ' ',
+          //type: selectedType || ' ',
         };
         return acc;
       }, {} as { [key: string]: any }),
@@ -686,7 +686,7 @@ const publishChanges = useCallback(async () => {
       variant: 'destructive',
     });
   }
-}, [type, taskRows, mainActorRows, workflow, step, entityData, columns,selectedType]);
+}, [type, taskRows, mainActorRows, workflow, step, entityData, columns]);
 
 
 if (loading) {
@@ -722,7 +722,7 @@ if (loading) {
               >
                 Publish changes
               </Button>
-              <Select onValueChange={(value) => setSelectedType(value)}>
+              {/* <Select onValueChange={(value) => setSelectedType(value)}>
   <SelectTrigger className="bg-white border border-gray-300">
     <SelectValue placeholder="Select Task" />
   </SelectTrigger>
@@ -730,7 +730,7 @@ if (loading) {
     <SelectItem value="overall">Overall</SelectItem>
     <SelectItem value="Task">Task</SelectItem>
   </SelectContent>
-</Select>
+</Select> */}
 
 
               <Avatar>
