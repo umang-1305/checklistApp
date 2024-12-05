@@ -502,7 +502,7 @@ const publishChanges = useCallback(async () => {
     return acc;
   }, {} as { [key: string]: string });
 
-  console.log('Action Type to Actor Map:', actionTypeToActorMap);
+  console.log("Action Type to Actor Map:", actionTypeToActorMap);
 
   // Step 2: Process taskRows to build entityObjects and extract custom columns
   const updatedTaskRows = taskRows.map((taskRow) => {
@@ -512,18 +512,17 @@ const publishChanges = useCallback(async () => {
     // Extract custom columns based on the 'columns' state
     columns.forEach((column) => {
       if (
-        column.name !== 'Task Number' &&
-        column.name !== 'Task Name' &&
-        column.name !== 'Actions' &&
-        column.name !== 'Remark' &&
-        column.name !== 'Entity Type' &&
-        column.name !== 'Entity Object' &&
-        column.name !== 'Route'
+        column.name !== "Task Number" &&
+        column.name !== "Task Name" &&
+        column.name !== "Actions" &&
+        column.name !== "Remark" &&
+        column.name !== "Entity Type" &&
+        column.name !== "Entity Object" &&
+        column.name !== "Route"
       ) {
-        // Assuming custom columns are of type 'text', adjust as needed
         customFields[column.name] = {
           input: taskRow[column.name] !== undefined ? true : false,
-          inputText: taskRow[column.name] || ' ',
+          inputText: taskRow[column.name] || " ",
         };
       }
     });
@@ -531,7 +530,6 @@ const publishChanges = useCallback(async () => {
     // Process entityObjects
     if (taskRow.entityType.length > 0) {
       taskRow.entityType.forEach((entityType) => {
-        // Normalize entityType to match the keys in entityData
         const normalizedEntityType = entityType.trim();
         const objectsForType = entityData[normalizedEntityType];
 
@@ -540,28 +538,22 @@ const publishChanges = useCallback(async () => {
             // Specific objects selected
             taskRow.entityObject.forEach((objName) => {
               const normalizedObjName = objName.trim();
-              // Initialize the entity object entry
               entityObjects[normalizedObjName] = {
                 entityType: normalizedEntityType,
               };
-
-              // Add entity-specific fields if any (custom fields are now outside)
-              // No action needed here
             });
           } else {
             // No specific objects selected, include all for the type
             Object.keys(objectsForType).forEach((objName) => {
-              // Initialize the entity object entry
               entityObjects[objName] = {
                 entityType: normalizedEntityType,
               };
-
-              // Add entity-specific fields if any (custom fields are now outside)
-              // No action needed here
             });
           }
         } else {
-          console.warn(`Entity Type "${normalizedEntityType}" not found in entityData.`);
+          console.warn(
+            `Entity Type "${normalizedEntityType}" not found in entityData.`
+          );
         }
       });
     }
@@ -569,15 +561,18 @@ const publishChanges = useCallback(async () => {
     return { ...taskRow, entityObjects, ...customFields };
   });
 
-  console.log('Updated Task Rows Before Payload:', JSON.stringify(updatedTaskRows, null, 2));
+  console.log(
+    "Updated Task Rows Before Payload:",
+    JSON.stringify(updatedTaskRows, null, 2)
+  );
 
   // Step 3: Process entities to include in payload
   const processedEntities = Object.keys(entityData).reduce((acc, entityTypeKey) => {
     acc[entityTypeKey] = Object.entries(entityData[entityTypeKey]).reduce(
       (entityAcc, [entityObjKey, entityObjValue]) => {
         entityAcc[entityObjKey] = {
-          ID: entityObjValue.ID || '',
-          name: entityObjValue.name || '',
+          ID: entityObjValue.ID || "",
+          name: entityObjValue.name || "",
         };
         return entityAcc;
       },
@@ -590,27 +585,29 @@ const publishChanges = useCallback(async () => {
     [step]: {
       actors: mainActorRows.reduce((acc, actor, index) => {
         acc[`actor${index + 1}`] = {
-          action: actor.actions || ' ',
+          action: actor.actions || " ",
           date: new Date().toUTCString(),
-          designation: actor.designation || ' ',
-          inspected: 'false',
-          name: actor.mainActor || ' ',
-          team: actor.team || ' ',
-          //type: selectedType || ' ',
+          designation: actor.designation || " ",
+          inspected: "false",
+          name: actor.mainActor || " ",
+          team: actor.team || " ",
         };
         return acc;
       }, {} as { [key: string]: any }),
       tasks: updatedTaskRows.reduce((acc, task, index) => {
         // Process actions for the task
         let taskActions: { [key: string]: any } = {};
-        if (task.actions) {
-          const actionType = task.actions.trim().toLowerCase();
-          const actorKey = actionTypeToActorMap[actionType] || `actor1`; // Default to actor1 if not found
-          taskActions[`action${index + 1}`] = {
-            actionType: task.actions || ' ',
-            actor: actorKey, // Dynamically assigned actor
-            isSigned: false, // Set to false by default or as required
-          };
+
+        if (task.actions && Array.isArray(task.actions)) {
+          task.actions.forEach((action, actionIndex) => {
+            const actionType = action.trim().toLowerCase();
+            const actorKey = actionTypeToActorMap[actionType] || `actor1`; // Default to actor1 if not found
+            taskActions[`action${actionIndex + 1}`] = {
+              actionType: action || " ",
+              actor: actorKey, // Dynamically assigned actor
+              isSigned: false, // Set to false by default or as required
+            };
+          });
         }
 
         acc[`task${index + 1}`] = {
@@ -618,25 +615,25 @@ const publishChanges = useCallback(async () => {
           entityObjects: task.entityObjects || {},
           remark: {
             input: task.remark,
-            remarkText: ' ',
+            remarkText: " ",
             showRemark: task.remark,
           },
-          route: task.route || ' ',
-          taskLabel: task.taskName || ' ',
+          route: task.route || " ",
+          taskLabel: task.taskName || " ",
           // Include custom fields directly under the task
           ...Object.keys(task).reduce((customAcc, key) => {
             if (
               ![
-                'id',
-                'taskNumber',
-                'taskName',
-                'actions',
-                'remark',
-                'entityType',
-                'entityObject',
-                'route',
-                'cellConfigs',
-                'entityObjects',
+                "id",
+                "taskNumber",
+                "taskName",
+                "actions",
+                "remark",
+                "entityType",
+                "entityObject",
+                "route",
+                "cellConfigs",
+                "entityObjects",
               ].includes(key)
             ) {
               customAcc[key] = task[key];
@@ -652,15 +649,15 @@ const publishChanges = useCallback(async () => {
     },
   };
 
-  console.log('Final Payload to Send:', JSON.stringify(payload, null, 2));
+  console.log("Final Payload to Send:", JSON.stringify(payload, null, 2));
 
   try {
     const response = await fetch(
       `https://admin-backend-85801868683.us-central1.run.app/Workflows/update/${workflow}`,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       }
@@ -668,22 +665,22 @@ const publishChanges = useCallback(async () => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Network response was not ok');
+      throw new Error(errorData.message || "Network response was not ok");
     }
 
     const responseData = await response.json();
-    console.log('API Response:', JSON.stringify(responseData, null, 2));
+    console.log("API Response:", JSON.stringify(responseData, null, 2));
 
     toast({
-      title: 'Changes published successfully',
-      description: 'Your changes have been saved and published.',
+      title: "Changes published successfully",
+      description: "Your changes have been saved and published.",
     });
   } catch (error: any) {
-    console.error('Error Response from API:', error);
+    console.error("Error Response from API:", error);
     toast({
-      title: 'Error publishing changes',
-      description: error.message || 'There was a problem publishing your changes.',
-      variant: 'destructive',
+      title: "Error publishing changes",
+      description: error.message || "There was a problem publishing your changes.",
+      variant: "destructive",
     });
   }
 }, [type, taskRows, mainActorRows, workflow, step, entityData, columns]);

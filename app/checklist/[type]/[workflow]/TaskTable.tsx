@@ -17,7 +17,7 @@ interface TaskRow {
   id: string;
   taskNumber: string;
   taskName: string;
-  actions: string;
+  actions: string[]; 
   remark: boolean;
   entityType: string[];
   entityObject: string[];
@@ -25,6 +25,7 @@ interface TaskRow {
   customCells?: CustomCell[];
   [key: string]: any;
 }
+
 
 interface CustomCell {
   tag: string;
@@ -221,19 +222,20 @@ export const TaskTable: React.FC<TaskTableProps> = ({
 
                     {/* Actions */}
                     <td className="p-2">
-                      <Combobox
-                        value={row.actions}
-                        onSelect={(value) =>
-                          handleTaskChange(rowIndex, "actions", value)
-                        }
-                        options={mainActorRows.map((actor) => ({
-                          value: actor.actions,
-                          label: actor.actions,
-                        }))}
-                        placeholder="Select action"
-                        searchPlaceholder="Search actions..."
-                      />
-                    </td>
+  <Combobox
+    value={row.actions} // Pass the current array of selected actions
+    onSelect={(updatedActions) =>
+      handleTaskChange(rowIndex, "actions", updatedActions) // Update actions array
+    }
+    options={mainActorRows.map((actor) => ({
+      value: actor.actions,
+      label: actor.actions,
+    }))}
+    placeholder="Select actions"
+    searchPlaceholder="Search actions..."
+  />
+</td>
+
 
                     {/* Remark */}
                     <td className="p-2 flex flex-row gap-x-2 items-center justify-center mt-4">

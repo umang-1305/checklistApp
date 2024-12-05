@@ -140,11 +140,17 @@ export default function Checklist({ type }: ChecklistProps) {
     setTaskRows([...taskRows, newRow]);
   };
 
-  const handleTaskChange = (rowIndex: number, field: keyof TaskRow, value: any) => {
+  const handleTaskChange = (
+    rowIndex: number,
+    field: keyof TaskRow,
+    value: any
+  ) => {
     const newRows = [...taskRows];
+    // Dynamically update the specified field
     newRows[rowIndex] = { ...newRows[rowIndex], [field]: value };
     setTaskRows(newRows);
   };
+  
 
   const handleEntityTypeChange = (rowIndex: number, selectedValues: string[]) => {
     const newRows = [...taskRows];
