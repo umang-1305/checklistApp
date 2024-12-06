@@ -212,7 +212,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                     <td className="p-2">
                       <Input
                         placeholder="Enter Task name"
-                        value={row.taskName}
+                        value={row.taskName || "Untitled"}
                         onChange={(e) =>
                           handleTaskChange(rowIndex, "taskName", e.target.value)
                         }
@@ -307,6 +307,7 @@ export const TaskTable: React.FC<TaskTableProps> = ({
                         ]}
                         placeholder="Select route"
                         searchPlaceholder="Search routes..."
+                        isSingleSelect={true}
                       />
                     </td>
 

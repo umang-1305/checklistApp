@@ -329,7 +329,7 @@ export default function Checklist({ type }: ChecklistProps) {
                   <td className="p-2">
                     <Input
                       placeholder="Enter Task name"
-                      value={row.taskName}
+                      value={row.taskName || "Untitled"}
                       onChange={(e) => handleTaskChange(rowIndex, 'taskName', e.target.value)}
                       className="bg-gray-50"
                     />

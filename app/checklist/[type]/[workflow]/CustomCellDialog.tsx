@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent } from '@/app/components/ui/dialog';
-import { Input } from '@/app/components/ui/input';
-import { Button } from '@/app/components/ui/button';
+import React, { useState } from "react";
+import { Dialog, DialogContent } from "@/app/components/ui/dialog";
+import { Input } from "@/app/components/ui/input";
+import { Button } from "@/app/components/ui/button";
+import { DialogTitle } from "@/components/ui/dialog";
 
 interface CustomCellDialogProps {
   isOpen: boolean;
@@ -14,19 +15,20 @@ export const CustomCellDialog: React.FC<CustomCellDialogProps> = ({
   onClose,
   onSave,
 }) => {
-  const [tag, setTag] = useState('');
-  const [type, setType] = useState('');
+  const [tag, setTag] = useState("");
+  const [type, setType] = useState("");
 
   const handleSave = () => {
     onSave(tag, type);
-    setTag('');
-    setType('');
+    setTag("");
+    setType("");
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
+        <DialogTitle className="sr-only">Set Tag and Cell Type</DialogTitle>
         <h2 className="text-lg font-medium">Set Tag and Cell Type</h2>
         <div className="space-y-4 mt-4">
           <Input
@@ -49,10 +51,7 @@ export const CustomCellDialog: React.FC<CustomCellDialogProps> = ({
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!tag || !type}
-            >
+            <Button onClick={handleSave} disabled={!tag || !type}>
               Save
             </Button>
           </div>

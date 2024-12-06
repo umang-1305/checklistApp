@@ -64,6 +64,7 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
     
     <Combobox
   value={row.mainActor}
+  isSingleSelect={true}
   onSelect={(value) => {
     console.log('Selected value:', value); 
     if (!value) {
@@ -91,21 +92,23 @@ export const MainActorSection: React.FC<MainActorSectionProps> = ({
 
     <Combobox
       value={row.team}
+      isSingleSelect={true}
       onSelect={(value) => handleMainActorChange(index, 'team', value)}
       options={Array.from(new Set(actorData.map(actor => actor.field)))
         .map(field => ({ value: field, label: field }))}
       placeholder="Select the team"
-      disabled={row.mainActor?.toLowerCase() === 'realtime'}
+      disabled={row.mainActor === 'realtime'}
     />
 
     <div className="flex flex-row gap-x-3">
       <Combobox
         value={row.designation}
+        isSingleSelect={true}
         onSelect={(value) => handleMainActorChange(index, 'designation', value)}
         options={Array.from(new Set(actorData.map(actor => actor.designation)))
           .map(designation => ({ value: designation, label: designation }))}
         placeholder="Select the Designation"
-        disabled={row.mainActor?.toLowerCase() === 'realtime'}
+        disabled={row.mainActor === 'realtime'}
       />
       <Button
         onClick={() => handleDelete(index)}
